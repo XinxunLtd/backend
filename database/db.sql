@@ -125,9 +125,9 @@ CREATE TABLE `categories` (
 --
 
 INSERT INTO `categories` (`id`, `name`, `description`, `profit_type`, `status`, `created_at`, `updated_at`) VALUES
-(1, 'Monitor', 'Profit terkunci, dibayarkan saat investasi selesai', 'locked', 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
-(2, 'Insight', 'Profit langsung dibayarkan', 'unlocked', 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
-(3, 'AutoPilot', 'Profit langsung dibayarkan', 'unlocked', 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00');
+(1, 'Router', 'Profit terkunci, dibayarkan saat investasi selesai', 'locked', 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+(2, 'Mifi', 'Profit langsung dibayarkan', 'unlocked', 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+(3, 'Powerbank', 'Profit langsung dibayarkan', 'unlocked', 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00');
 
 -- --------------------------------------------------------
 
@@ -244,25 +244,25 @@ CREATE TABLE `products` (
 --
 
 INSERT INTO `products` (`id`, `category_id`, `name`, `amount`, `daily_profit`, `duration`, `required_vip`, `purchase_limit`, `status`, `created_at`, `updated_at`) VALUES
--- Monitor Category (category_id=1, Locked Profit, No Purchase Limit)
-(1, 1, 'Monitor 1', 50000.00, 15000.00, 70, 0, 0, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
-(2, 1, 'Monitor 2', 200000.00, 68000.00, 60, 0, 0, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
-(3, 1, 'Monitor 3', 500000.00, 175000.00, 65, 0, 0, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
-(4, 1, 'Monitor 4', 1250000.00, 432000.00, 65, 0, 0, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
-(5, 1, 'Monitor 5', 2800000.00, 1050000.00, 65, 0, 0, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
-(6, 1, 'Monitor 6', 7000000.00, 2660000.00, 50, 0, 0, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
-(7, 1, 'Monitor 7', 20000000.00, 8000000.00, 50, 0, 0, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
--- Insight Category (category_id=2, Unlocked Profit, Limited to 1x per product)
-(8, 2, 'Insight 1', 50000.00, 20000.00, 1, 1, 1, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
-(9, 2, 'Insight 2', 250000.00, 275000.00, 1, 2, 1, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
-(10, 2, 'Insight 3', 700000.00, 950000.00, 1, 3, 1, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
-(11, 2, 'Insight 4', 2000000.00, 3600000.00, 1, 4, 1, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
-(12, 2, 'Insight 5', 8000000.00, 16000000.00, 1, 5, 1, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
--- AutoPilot Category (category_id=3, All require VIP3, Limited purchases)
-(13, 3, 'AutoPilot 1', 80000.00, 70000.00, 1, 3, 2, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
-(14, 3, 'AutoPilot 2', 165000.00, 150000.00, 1, 3, 2, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
-(15, 3, 'AutoPilot 3', 750000.00, 1000000.00, 1, 3, 1, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
-(16, 3, 'AutoPilot 4', 2450000.00, 4000000.00, 1, 3, 1, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00');
+-- Router Category (category_id=1, Locked Profit, No Purchase Limit)
+(1, 1, 'Router 1', 50000.00, 15000.00, 70, 0, 0, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+(2, 1, 'Router 2', 200000.00, 68000.00, 60, 0, 0, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+(3, 1, 'Router 3', 500000.00, 175000.00, 65, 0, 0, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+(4, 1, 'Router 4', 1250000.00, 432000.00, 65, 0, 0, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+(5, 1, 'Router 5', 2800000.00, 1050000.00, 65, 0, 0, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+(6, 1, 'Router 6', 7000000.00, 2660000.00, 50, 0, 0, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+(7, 1, 'Router 7', 20000000.00, 8000000.00, 50, 0, 0, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+-- Mifi Category (category_id=2, Unlocked Profit, Limited to 1x per product)
+(8, 2, 'Mifi 1', 50000.00, 20000.00, 1, 1, 1, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+(9, 2, 'Mifi 2', 250000.00, 275000.00, 1, 2, 1, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+(10, 2, 'Mifi 3', 700000.00, 950000.00, 1, 3, 1, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+(11, 2, 'Mifi 4', 2000000.00, 3600000.00, 1, 4, 1, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+(12, 2, 'Mifi 5', 8000000.00, 16000000.00, 1, 5, 1, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+-- Powerbank Category (category_id=3, All require VIP3, Limited purchases)
+(13, 3, 'Powerbank 1', 80000.00, 70000.00, 1, 3, 2, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+(14, 3, 'Powerbank 2', 165000.00, 150000.00, 1, 3, 2, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+(15, 3, 'Powerbank 3', 750000.00, 1000000.00, 1, 3, 1, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00'),
+(16, 3, 'Powerbank 4', 2450000.00, 4000000.00, 1, 3, 1, 'Active', '2025-10-11 00:00:00', '2025-10-11 00:00:00');
 
 -- --------------------------------------------------------
 
@@ -445,7 +445,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `name`, `number`, `password`, `reff_code`, `reff_by`, `balance`, `level`, `total_invest`, `total_invest_vip`, `spin_ticket`, `status`, `investment_status`, `created_at`, `updated_at`) VALUES
-(1, 'Ciroos Users Management', '812345678', '$2y$10$fa5X/6ZfpaNZsa07TyzO3ukL/AtxtGLv.6erFIw9KmXFNYyFbE656', 'CIROOS', 0, 0.00, 0, 0.00, 0.00, 100, 'Active', 'Active', '2025-01-01 00:00:00.000', '2025-01-01 00:00:00.000');
+(1, 'XinXun Users Management', '812345678', '$2y$10$fa5X/6ZfpaNZsa07TyzO3ukL/AtxtGLv.6erFIw9KmXFNYyFbE656', 'XINXUN', 0, 0.00, 0, 0.00, 0.00, 100, 'Active', 'Active', '2025-01-01 00:00:00.000', '2025-01-01 00:00:00.000');
 
 -- --------------------------------------------------------
 
