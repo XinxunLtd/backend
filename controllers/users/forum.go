@@ -6,6 +6,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"math"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -30,24 +31,35 @@ func ForumListHandler(w http.ResponseWriter, r *http.Request) {
 		return prefix + masked + suffix
 	}
 	db := database.DB
- pageStr := r.URL.Query().Get("page")
- // Support both limit and legacy page_size
- limitStr := r.URL.Query().Get("limit")
- if limitStr == "" {
- 	limitStr = r.URL.Query().Get("page_size")
- }
- page, _ := strconv.Atoi(pageStr)
- if page < 1 {
- 	page = 1
- }
- pageSize, _ := strconv.Atoi(limitStr)
- if pageSize < 1 || pageSize > 50 {
- 	pageSize = 25
- }
 
- var forums []models.Forum
- offset := (page - 1) * pageSize
- if err := db.Where("status = ?", "Accepted").Order("created_at DESC").Limit(pageSize).Offset(offset).Find(&forums).Error; err != nil {
+	// Get query parameters
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	// Parse pagination with defaults
+	page, _ := strconv.Atoi(pageStr)
+	if page < 1 {
+		page = 1
+	}
+	limit, _ := strconv.Atoi(limitStr)
+	if limit < 1 {
+		limit = 10
+	}
+
+	// Count total rows
+	var totalRows int64
+	if err := db.Model(&models.Forum{}).Where("status = ?", "Accepted").Count(&totalRows).Error; err != nil {
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "DB error"})
+		return
+	}
+
+	// Calculate pagination
+	totalPages := int(math.Ceil(float64(totalRows) / float64(limit)))
+	offset := (page - 1) * limit
+
+	// Query forums with pagination
+	var forums []models.Forum
+	if err := db.Where("status = ?", "Accepted").Order("created_at DESC").Limit(limit).Offset(offset).Find(&forums).Error; err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "DB error"})
 		return
 	}
@@ -105,7 +117,19 @@ func ForumListHandler(w http.ResponseWriter, r *http.Request) {
 			Time:        f.CreatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
-	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{Success: true, Message: "Successfully", Data: resp})
+
+	// Build response with pagination
+	responseData := map[string]interface{}{
+		"data": resp,
+		"pagination": map[string]interface{}{
+			"page":       page,
+			"limit":      limit,
+			"total_rows": totalRows,
+			"total_pages": totalPages,
+		},
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{Success: true, Message: "Successfully", Data: responseData})
 }
 
 // GET /api/users/check-forum //check if user has withdrawal in last 3 days and give response data {has_withdrawal: true/false}

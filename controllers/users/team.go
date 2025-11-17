@@ -1,6 +1,7 @@
 package users
 
 import (
+	"math"
 	"net/http"
 	"project/database"
 	"project/models"
@@ -195,39 +196,71 @@ func TeamDataHandler(w http.ResponseWriter, r *http.Request) {
 		return num[:3] + "****" + num[n-4:]
 	}
 
-	// Pagination: page + limit from query
+	// Get query parameters
+	searchQuery := strings.TrimSpace(r.URL.Query().Get("search"))
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
+
+	// Parse pagination with defaults
 	page, _ := strconv.Atoi(pageStr)
 	if page < 1 {
 		page = 1
 	}
 	limit, _ := strconv.Atoi(limitStr)
-	if limit < 1 || limit > 50 {
-		limit = 25
-	}
-	start := (page - 1) * limit
-	end := start + limit
-	if start > len(users) {
-		start = len(users)
-	}
-	if end > len(users) {
-		end = len(users)
+	if limit < 1 {
+		limit = 10
 	}
 
+	// Apply search filter if provided
+	filteredUsers := users
+	if searchQuery != "" {
+		searchLower := strings.ToLower(searchQuery)
+		filteredUsers = []models.User{}
+		for _, u := range users {
+			nameMatch := strings.Contains(strings.ToLower(u.Name), searchLower)
+			numberMatch := strings.Contains(strings.ToLower(u.Number), searchLower)
+			if nameMatch || numberMatch {
+				filteredUsers = append(filteredUsers, u)
+			}
+		}
+	}
+
+	// Calculate pagination
+	totalRows := len(filteredUsers)
+	totalPages := int(math.Ceil(float64(totalRows) / float64(limit)))
+	start := (page - 1) * limit
+	end := start + limit
+
+	// Ensure start and end are within bounds
+	if start > totalRows {
+		start = totalRows
+	}
+	if end > totalRows {
+		end = totalRows
+	}
+
+	// Get paginated data
 	var data []map[string]interface{}
-	for _, u := range users[start:end] {
-		data = append(data, map[string]interface{}{
-			"name":         u.Name,
-			"number":       censorNumber(u.Number),
-			"active":       strings.ToLower(u.InvestmentStatus) == "active",
-			"total_invest": u.TotalInvest,
-		})
+	if start < end {
+		for _, u := range filteredUsers[start:end] {
+			data = append(data, map[string]interface{}{
+				"name":         u.Name,
+				"number":       censorNumber(u.Number),
+				"active":       strings.ToLower(u.InvestmentStatus) == "active",
+				"total_invest": u.TotalInvest,
+			})
+		}
 	}
 
 	resp := map[string]interface{}{
 		"level":   level,
 		"members": data,
+		"pagination": map[string]interface{}{
+			"page":       page,
+			"limit":      limit,
+			"total_rows": totalRows,
+			"total_pages": totalPages,
+		},
 	}
 	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{
 		Success: true,

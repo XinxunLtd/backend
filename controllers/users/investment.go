@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -395,25 +396,64 @@ func ListInvestmentsHandler(w http.ResponseWriter, r *http.Request) {
 		utils.WriteJSON(w, http.StatusUnauthorized, utils.APIResponse{Success: false, Message: "Unauthorized"})
 		return
 	}
+
+	// Get query parameters
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
+	searchQuery := strings.TrimSpace(r.URL.Query().Get("search"))
+
+	// Parse pagination with defaults
 	page, _ := strconv.Atoi(pageStr)
 	if page < 1 {
 		page = 1
 	}
 	limit, _ := strconv.Atoi(limitStr)
-	if limit < 1 || limit > 50 {
-		limit = 25
+	if limit < 1 {
+		limit = 10
 	}
-	offset := (page - 1) * limit
 
 	db := database.DB
-	var rows []models.Investment
-	if err := db.Where("user_id = ?", uid).Order("id DESC").Limit(limit).Offset(offset).Find(&rows).Error; err != nil {
+
+	// Build base query for counting
+	countQuery := db.Model(&models.Investment{}).Where("user_id = ?", uid)
+	if searchQuery != "" {
+		countQuery = countQuery.Where("order_id LIKE ?", "%"+searchQuery+"%")
+	}
+
+	// Count total rows
+	var totalRows int64
+	if err := countQuery.Count(&totalRows).Error; err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Terjadi kesalahan"})
 		return
 	}
-	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{Success: true, Message: "Successfully", Data: map[string]interface{}{"investments": rows}})
+
+	// Calculate pagination
+	totalPages := int(math.Ceil(float64(totalRows) / float64(limit)))
+	offset := (page - 1) * limit
+
+	// Build query for fetching data
+	var rows []models.Investment
+	query := db.Where("user_id = ?", uid)
+	if searchQuery != "" {
+		query = query.Where("order_id LIKE ?", "%"+searchQuery+"%")
+	}
+	if err := query.Order("id DESC").Limit(limit).Offset(offset).Find(&rows).Error; err != nil {
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Terjadi kesalahan"})
+		return
+	}
+
+	// Build response with pagination
+	responseData := map[string]interface{}{
+		"data": rows,
+		"pagination": map[string]interface{}{
+			"page":       page,
+			"limit":      limit,
+			"total_rows": totalRows,
+			"total_pages": totalPages,
+		},
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{Success: true, Message: "Successfully", Data: responseData})
 }
 
 // GET /api/users/investments/{id}
