@@ -32,7 +32,7 @@ func InitRouter() *mux.Router {
 		)(next)
 	})
 
-	api := r.PathPrefix("/api").Subrouter()
+	api := r.PathPrefix("/v3").Subrouter()
 
 	// Add catch-all OPTIONS handler for CORS preflight
 	api.PathPrefix("/").HandlerFunc(optionsHandler).Methods(http.MethodOptions)
