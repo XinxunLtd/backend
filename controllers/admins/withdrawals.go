@@ -139,7 +139,7 @@ func ApproveWithdrawal(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
 			Message: "ID penarikan tidak valid",
 		})
@@ -163,7 +163,7 @@ func ApproveWithdrawal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if withdrawal.Status != "Pending" {
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
 			Message: "Hanya penarikan dengan status Pending yang dapat disetujui",
 		})
@@ -270,7 +270,7 @@ func ApproveWithdrawal(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
 			Message: "Koneksi ke payment gateway gagal: " + err.Error(),
 		})
@@ -309,7 +309,7 @@ func ApproveWithdrawal(w http.ResponseWriter, r *http.Request) {
 		} else if len(tokenBodyBytes) > 0 && len(tokenBodyBytes) < 500 {
 			errorMsg = string(tokenBodyBytes)
 		}
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
 			Message: errorMsg,
 		})
@@ -333,7 +333,7 @@ func ApproveWithdrawal(w http.ResponseWriter, r *http.Request) {
 			strings.HasPrefix(atkResp.ResponseCode, "200")
 
 		if !isSuccess {
-			utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
+			utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 				Success: false,
 				Message: atkResp.ResponseMessage,
 			})
@@ -377,7 +377,7 @@ func ApproveWithdrawal(w http.ResponseWriter, r *http.Request) {
 
 	resp2, err := client.Do(req2)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
 			Message: "Koneksi ke payment gateway gagal: " + err.Error(),
 		})
@@ -417,7 +417,7 @@ func ApproveWithdrawal(w http.ResponseWriter, r *http.Request) {
 		} else if len(payoutBodyBytes) > 0 && len(payoutBodyBytes) < 500 {
 			errorMsg = string(payoutBodyBytes)
 		}
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
 			Message: errorMsg,
 		})
@@ -441,7 +441,7 @@ func ApproveWithdrawal(w http.ResponseWriter, r *http.Request) {
 			strings.HasPrefix(payoutResp.ResponseCode, "200")
 
 		if !isSuccess {
-			utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
+			utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 				Success: false,
 				Message: payoutResp.ResponseMessage,
 			})
@@ -495,7 +495,7 @@ func RejectWithdrawal(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
 			Message: "ID penarikan tidak valid",
 		})
@@ -520,7 +520,7 @@ func RejectWithdrawal(w http.ResponseWriter, r *http.Request) {
 
 	// Only allow rejecting pending withdrawals
 	if withdrawal.Status != "Pending" {
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
 			Message: "Hanya penarikan dengan status Pending yang dapat ditolak",
 		})
@@ -615,7 +615,7 @@ func KytaPayoutWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Invalid JSON"})
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Invalid JSON"})
 		return
 	}
 
@@ -623,7 +623,7 @@ func KytaPayoutWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	status := payload.CallbackData.Status
 
 	if referenceID == "" {
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "reference_id kosong"})
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "reference_id kosong"})
 		return
 	}
 
