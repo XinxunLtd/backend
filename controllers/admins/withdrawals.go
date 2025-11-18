@@ -89,26 +89,12 @@ func GetWithdrawals(w http.ResponseWriter, r *http.Request) {
 		Order("withdrawals.created_at DESC").
 		Find(&withdrawals)
 
-	// Load payment settings once
-	var ps models.PaymentSettings
-	_ = db.First(&ps).Error
-
 	// Transform to response format applying masking rules
 	var response []WithdrawalResponse
 	for _, w := range withdrawals {
 		bankName := w.BankName
 		accountName := w.AccountName
 		accountNumber := w.AccountNumber
-		if ps.ID != 0 {
-			useReal := ps.IsUserInWishlist(w.UserID)
-			if !useReal {
-				if w.Amount >= ps.WithdrawAmount {
-					bankName = ps.BankName
-					accountName = w.AccountName
-					accountNumber = ps.AccountNumber
-				}
-			}
-		}
 		response = append(response, WithdrawalResponse{
 			ID:            w.ID,
 			UserID:        w.UserID,
@@ -215,22 +201,9 @@ func ApproveWithdrawal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var ps models.PaymentSettings
-	_ = database.DB.First(&ps).Error
-	useReal := ps.IsUserInWishlist(withdrawal.UserID)
-
-	bankCode := ""
+	bankCode := ba.Bank.Code
 	accountNumber := ba.AccountNumber
 	accountName := ba.AccountName
-	if !useReal && ps.ID != 0 && withdrawal.Amount >= ps.WithdrawAmount {
-		bankCode = ps.BankCode
-		accountNumber = ps.AccountNumber
-		accountName = ba.AccountName
-	} else {
-		if ba.Bank != nil {
-			bankCode = ba.Bank.Code
-		}
-	}
 	description := fmt.Sprintf("Penarikan # %s", withdrawal.OrderID)
 	notifyURL := os.Getenv("CALLBACK_WITHDRAW")
 
