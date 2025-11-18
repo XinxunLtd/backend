@@ -100,19 +100,13 @@ func ForumListHandler(w http.ResponseWriter, r *http.Request) {
 	resp := make([]forumResp, 0, len(forums))
 	for _, f := range forums {
 		u := userMap[f.UserID]
-		imgURL := f.Image
-		if f.Image != "" {
-			if url, err := utils.GenerateSignedURL(f.Image, 3600); err == nil {
-				imgURL = url
-			}
-		}
 		resp = append(resp, forumResp{
 			ID:          f.ID,
 			Name:        u.Name,
 			Number:      maskNumber(u.Number),
 			Reward:      f.Reward,
 			Description: f.Description,
-			Image:       imgURL,
+			Image:       f.Image,
 			Status:      f.Status,
 			Time:        f.CreatedAt.Format("2006-01-02 15:04:05"),
 		})
