@@ -52,9 +52,10 @@ func InitRouter() *mux.Router {
 	api.Handle("/cron/daily-returns", cronLimiter.Middleware(http.HandlerFunc(users.CronDailyReturnsHandler))).Methods(http.MethodPost)
 
 	// Kytapay webhook (no auth, whitelist, sliding window)
-	api.Handle("/payments/kyta/webhook", webhookLimiter.Middleware(http.HandlerFunc(users.KytaWebhookHandler))).Methods(http.MethodPost)
+	api.Handle("/callback/payments", webhookLimiter.Middleware(http.HandlerFunc(users.KytaWebhookHandler))).Methods(http.MethodPost)
 
-	api.Handle("/payouts/kyta/webhook", webhookLimiter.Middleware(http.HandlerFunc(admins.KytaPayoutWebhookHandler))).Methods(http.MethodPost)
+	// Kytapay payout callback
+	api.Handle("/callback/payouts", webhookLimiter.Middleware(http.HandlerFunc(admins.KytaPayoutCallbackHandler))).Methods(http.MethodPost)
 
 	// Example protected endpoint using JWT middleware
 	api.Handle("/ping", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

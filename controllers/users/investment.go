@@ -557,7 +557,7 @@ func KytaWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		CallbackData    struct {
 			ID          string `json:"id"`
 			ReferenceID string `json:"reference_id"`
-			Amount      string `json:"amount"`
+			Amount      int64 `json:"amount"`
 			Status      string `json:"status"`
 			PaymentType string `json:"payment_type"`
 			PaymentData struct {

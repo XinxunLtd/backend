@@ -375,8 +375,16 @@ func ApproveWithdrawal(w http.ResponseWriter, r *http.Request) {
 		ResponseData    struct {
 			ID          string `json:"id"`
 			ReferenceID string `json:"reference_id"`
-			Amount      string `json:"amount"`
-			Status      string `json:"status"`
+			Amount      int64  `json:"amount"`
+			PayoutData  struct {
+				Code          string `json:"code"`
+				AccountNumber string `json:"account_number"`
+				AccountName   string `json:"account_name"`
+			} `json:"payout_data,omitempty"`
+			MerchantURL struct {
+				NotifyURL string `json:"notify_url"`
+			} `json:"merchant_url,omitempty"`
+			RequestTime string `json:"request_time,omitempty"`
 		} `json:"response_data,omitempty"`
 	}
 
@@ -565,20 +573,20 @@ func RejectWithdrawal(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// POST /api/payouts/kyta/webhook
-func KytaPayoutWebhookHandler(w http.ResponseWriter, r *http.Request) {
+// POST /v3/callback/payouts
+func KytaPayoutCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
 		CallbackCode    string `json:"callback_code"`
 		CallbackMessage string `json:"callback_message"`
 		CallbackData    struct {
 			ID          string `json:"id"`
 			ReferenceID string `json:"reference_id"`
-			Amount      string `json:"amount"`
+			Amount      int64  `json:"amount"`
 			Status      string `json:"status"`
 			PayoutData  struct {
-				Code          string `json:"code"`
-				AccountNumber string `json:"account_number"`
-				AccountName   string `json:"account_name"`
+				Code          string      `json:"code"`
+				AccountNumber interface{} `json:"account_number"` // Can be int or string
+				AccountName   string      `json:"account_name"`
 			} `json:"payout_data"`
 			MerchantURL struct {
 				NotifyURL string `json:"notify_url"`
@@ -588,7 +596,10 @@ func KytaPayoutWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Invalid JSON"})
+		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
+			Success: false,
+			Message: "Invalid JSON",
+		})
 		return
 	}
 
@@ -596,25 +607,50 @@ func KytaPayoutWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	status := payload.CallbackData.Status
 
 	if referenceID == "" {
-		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "reference_id kosong"})
+		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
+			Success: false,
+			Message: "reference_id kosong",
+		})
 		return
 	}
 
-	// If status is Success, ignore the callback
-	if status == "Success" {
-		utils.WriteJSON(w, http.StatusOK, utils.APIResponse{Success: true, Message: "Ignore"})
+	// Validate status
+	if status != "Success" && status != "Pending" && status != "Failed" {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
+			Success: false,
+			Message: "Status tidak valid",
+		})
 		return
 	}
 
-	// If status is not Success, set withdrawal status back to Pending
+	// If status is Success or Pending, return 200 OK without updating database
+	if status == "Success" || status == "Pending" {
+		utils.WriteJSON(w, http.StatusOK, utils.APIResponse{
+			Success: true,
+			Message: "Callback diterima",
+		})
+		return
+	}
+
+	// If status is Failed, update withdrawal status to Pending
 	db := database.DB
 	var withdrawal models.Withdrawal
 	if err := db.Where("order_id = ?", referenceID).First(&withdrawal).Error; err != nil {
-		utils.WriteJSON(w, http.StatusNotFound, utils.APIResponse{Success: false, Message: "Penarikan tidak ditemukan"})
+		if err == gorm.ErrRecordNotFound {
+			utils.WriteJSON(w, http.StatusNotFound, utils.APIResponse{
+				Success: false,
+				Message: "Penarikan tidak ditemukan",
+			})
+			return
+		}
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
+			Success: false,
+			Message: "Gagal mengambil data penarikan",
+		})
 		return
 	}
 
-	// Start transaction to update withdrawal and transaction status back to Pending
+	// Start transaction to update withdrawal and transaction status to Pending
 	tx := db.Begin()
 
 	// Update withdrawal status to Pending
@@ -648,6 +684,7 @@ func KytaPayoutWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Return 200 OK after successful update
 	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{
 		Success: true,
 		Message: "Status penarikan dikembalikan ke Pending",
