@@ -179,13 +179,13 @@ docker compose logs -f app
 ### 4.4 Verify Backend Database
 ```bash
 # Check database connection
-docker exec backend-mysql-1 mysql -u root -p${DB_ROOT_PASSWORD} -e "SHOW DATABASES;"
+docker exec vla-mysql mysql -u root -pvlaroot -e "SHOW DATABASES;"
 
 ##Create migration table
-docker exec -i vla-mysql mysql -u root -pvlaroot vla-ciroos < ./database/db.sql
+docker exec -i vla-mysql mysql -u root -pvlaroot vla-db < ./database/db.sql
 
 # Verify tables
-docker exec backend-mysql-1 mysql -u root -p${DB_ROOT_PASSWORD} ${DB_NAME} -e "SHOW TABLES;"
+docker exec vla-mysql mysql -u root -pvlaroot vla-db -e "SHOW TABLES;"
 ```
 
 ## 🎨 **STEP 5: SETUP FRONTEND (Next.js)**
@@ -349,18 +349,18 @@ sudo nano /etc/nginx/sites-available/api.web.com
 # HTTP redirect to HTTPS
 server {
     listen 80;
-    server_name api.web.com;
+    server_name api.xinxun.us;
     return 301 https://$host$request_uri;
 }
 
 # HTTPS API Server
 server {
     listen 443 ssl http2;
-    server_name api.web.com;
+    server_name api.xinxun.us;
     
     # SSL Configuration
-    ssl_certificate /etc/letsencrypt/live/api.web.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.web.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/api.xinxun.us/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.xinxun.us/privkey.pem;
     
     # SSL Security
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -378,7 +378,7 @@ server {
     location / {
         # Handle OPTIONS requests first
         if ($request_method = 'OPTIONS') {
-            add_header Access-Control-Allow-Origin "https://web.com";
+            add_header Access-Control-Allow-Origin "https://xinxun.us";
             add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS";
             add_header Access-Control-Allow-Headers "Accept, Authorization, Cache-Control, Content-Type, DNT, If-Modified-Since, Keep-Alive, Origin, User-Agent, X-Requested-With";
             add_header Access-Control-Max-Age 1728000;
@@ -424,29 +424,29 @@ sudo nano /etc/nginx/sites-available/web.com
 # HTTP redirect to HTTPS
 server {
     listen 80;
-    server_name web.com www.web.com;
-    return 301 https://web.com$request_uri;
+    server_name xinxun.us www.xinxun.us;
+    return 301 https://xinxun.us$request_uri;
 }
 
 # HTTPS redirect www to non-www
 server {
     listen 443 ssl http2;
-    server_name www.web.com;
+    server_name www.xinxun.us;
     
-    ssl_certificate /etc/letsencrypt/live/web.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/web.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/xinxun.us/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/xinxun.us/privkey.pem;
     
-    return 301 https://web.com$request_uri;
+    return 301 https://xinxun.us$request_uri;
 }
 
 # HTTPS Frontend Server
 server {
     listen 443 ssl http2;
-    server_name web.com;
+    server_name xinxun.us;
     
     # SSL Configuration
-    ssl_certificate /etc/letsencrypt/live/web.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/web.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/xinxun.us/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/xinxun.us/privkey.pem;
     
     # SSL Security
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -458,7 +458,7 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "no-referrer-when-downgrade" always;
-    add_header Content-Security-Policy "default-src 'self' https://api.web.com http: https: data: blob: 'unsafe-inline'" always;
+    add_header Content-Security-Policy "default-src 'self' https://api.xinxun.us http: https: data: blob: 'unsafe-inline'" always;
     
     # Proxy to Next.js frontend
     location / {

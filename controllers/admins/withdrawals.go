@@ -208,7 +208,7 @@ func ApproveWithdrawal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auto withdrawal using KLIKPAY/KYTAPAY
+	// Auto withdrawal using KYTAPAY/KYTAPAY
 	var ba models.BankAccount
 	if err := database.DB.Preload("Bank").First(&ba, withdrawal.BankAccountID).Error; err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Gagal mengambil rekening"})
@@ -235,12 +235,12 @@ func ApproveWithdrawal(w http.ResponseWriter, r *http.Request) {
 	notifyURL := os.Getenv("CALLBACK_WITHDRAW")
 
 	// Get payment gateway configuration
-	apiURL := os.Getenv("KLIKPAY_BASE_URL")
+	apiURL := os.Getenv("KYTAPAY_BASE_URL")
 	// Trim trailing slash untuk konsistensi
 	apiURL = strings.TrimRight(apiURL, "/")
 
-	clientID := os.Getenv("KLIKPAY_CLIENT_ID")
-	clientSecret := os.Getenv("KLIKPAY_CLIENT_SECRET")
+	clientID := os.Getenv("KYTAPAY_CLIENT_ID")
+	clientSecret := os.Getenv("KYTAPAY_CLIENT_SECRET")
 
 	if clientID == "" || clientSecret == "" {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
