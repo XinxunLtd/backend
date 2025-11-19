@@ -60,8 +60,8 @@ func WithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 	loc, _ := time.LoadLocation("Asia/Jakarta")
 	now := time.Now().In(loc)
 	hour := now.Hour()
-	if hour < 12 || hour >= 17 {
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Penarikan hanya dapat dilakukan pada pukul 12:00 - 17:00 WIB"})
+	if hour < 9 || hour >= 17 {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Penarikan hanya dapat dilakukan pada pukul 09:00 - 17:00 WIB"})
 		return
 	}
 
