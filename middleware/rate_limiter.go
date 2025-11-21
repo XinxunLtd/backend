@@ -165,7 +165,7 @@ func (l *IPRateLimiter) Middleware(next http.Handler) http.Handler {
 		if count > limit {
 			w.Header().Set("Retry-After", fmt.Sprintf("%d", int(l.window.Seconds())))
 			w.WriteHeader(http.StatusTooManyRequests)
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Too many requests (ip)."})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Terlalu banyak permintaan, Coba lagi dalam ", fmt.Sprintf("%d", int(l.window.Seconds())), "detik"})
 			return
 		}
 		next.ServeHTTP(w, r)
