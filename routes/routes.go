@@ -25,7 +25,7 @@ func InitRouter() *mux.Router {
 	// Add CORS middleware
 	r.Use(func(next http.Handler) http.Handler {
 		return handlers.CORS(
-			handlers.AllowedOrigins([]string{"https://ciroos.ca", "https://stoneform.co.id", "https://api.stoneform.co.id", "http://localhost:3000"}),
+			handlers.AllowedOrigins([]string{"https://xinxun.us", "https://stoneform.co.id", "https://api.stoneform.co.id", "http://localhost:3000"}),
 			handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
 			handlers.AllowedHeaders([]string{"Content-Type", "Authorization", "X-VLA-KEY", "X-CRON-KEY"}),
 			handlers.AllowCredentials(),
@@ -53,7 +53,7 @@ func InitRouter() *mux.Router {
 	api.Handle("/cron/daily-returns", cronLimiter.Middleware(http.HandlerFunc(users.CronDailyReturnsHandler))).Methods(http.MethodPost)
 
 	// Webhook wrapper to bypass CORS restrictions
-	webhookWrapper := func(handler http.HandlerFunc) http.Handler {
+	webhookWrapper := func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Allow all origins for webhook callbacks
 			w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -63,7 +63,7 @@ func InitRouter() *mux.Router {
 				w.WriteHeader(http.StatusNoContent)
 				return
 			}
-			handler(w, r)
+			handler.ServeHTTP(w, r)
 		})
 	}
 
