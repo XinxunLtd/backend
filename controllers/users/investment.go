@@ -222,7 +222,7 @@ func CreateInvestmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	kytapayBase := os.Getenv("KYTAPAY_BASE_URL")
 	if kytapayBase == "" {
-		kytapayBase = "https://api.kytapay.com/v2"
+		kytapayBase = "https://api-v2.kytapay.com/v2"
 	}
 	kytapayClientID := os.Getenv("KYTAPAY_CLIENT_ID")
 	kytapayClientSecret := os.Getenv("KYTAPAY_CLIENT_SECRET")
@@ -930,7 +930,7 @@ func createKytaQRISSafe(ctx context.Context, client *http.Client, baseURL, acces
 		"notify_url":   notifyURL,
 		"success_url":  successURL,
 		"failed_url":   failedURL,
-		"expires_time": 900,
+		"expires_time": 86400,
 	}
 	body, _ := json.Marshal(payload)
 
