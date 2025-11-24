@@ -490,21 +490,55 @@ func ListInvestmentsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Build response with expired_at from payment and product name
-	type InvestmentWithExpired struct {
-		models.Investment
-		ExpiredAt *string `json:"expired_at,omitempty"`
-		Product   *string `json:"product,omitempty"`
+	// Build response with expired_at from payment, product name, and status from payment
+	type InvestmentResponse struct {
+		ID            uint       `json:"id"`
+		UserID        uint       `json:"user_id"`
+		ProductID     uint       `json:"product_id"`
+		CategoryID    uint       `json:"category_id"`
+		Amount        float64    `json:"amount"`
+		DailyProfit   float64    `json:"daily_profit"`
+		Duration      int        `json:"duration"`
+		TotalPaid     int        `json:"total_paid"`
+		TotalReturned float64    `json:"total_returned"`
+		LastReturnAt  *time.Time `json:"last_return_at,omitempty"`
+		NextReturnAt  *time.Time `json:"next_return_at,omitempty"`
+		OrderID       string     `json:"order_id"`
+		Status        string     `json:"status"` // Status from payment
+		CreatedAt     time.Time  `json:"created_at"`
+		UpdatedAt     time.Time  `json:"updated_at"`
+		ExpiredAt     *string    `json:"expired_at,omitempty"`
+		Product       *string    `json:"product,omitempty"`
 	}
-	responseRows := make([]InvestmentWithExpired, 0, len(rows))
+	responseRows := make([]InvestmentResponse, 0, len(rows))
 	for _, inv := range rows {
-		item := InvestmentWithExpired{
-			Investment: inv,
+		item := InvestmentResponse{
+			ID:            inv.ID,
+			UserID:        inv.UserID,
+			ProductID:     inv.ProductID,
+			CategoryID:    inv.CategoryID,
+			Amount:        inv.Amount,
+			DailyProfit:   inv.DailyProfit,
+			Duration:      inv.Duration,
+			TotalPaid:     inv.TotalPaid,
+			TotalReturned: inv.TotalReturned,
+			LastReturnAt:  inv.LastReturnAt,
+			NextReturnAt:  inv.NextReturnAt,
+			OrderID:       inv.OrderID,
+			Status:        inv.Status, // Default to investment status
+			CreatedAt:     inv.CreatedAt,
+			UpdatedAt:     inv.UpdatedAt,
 		}
-		if payment, ok := paymentMap[inv.OrderID]; ok && payment.ExpiredAt != nil {
-			expiredStr := payment.ExpiredAt.UTC().Format(time.RFC3339)
-			item.ExpiredAt = &expiredStr
+		
+		// Get status from payment if payment exists
+		if payment, ok := paymentMap[inv.OrderID]; ok {
+			item.Status = payment.Status
+			if payment.ExpiredAt != nil {
+				expiredStr := payment.ExpiredAt.UTC().Format(time.RFC3339)
+				item.ExpiredAt = &expiredStr
+			}
 		}
+		
 		if productName, ok := productMap[inv.ProductID]; ok {
 			item.Product = &productName
 		}
