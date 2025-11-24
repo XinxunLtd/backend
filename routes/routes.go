@@ -25,7 +25,7 @@ func InitRouter() *mux.Router {
 	// Add CORS middleware
 	r.Use(func(next http.Handler) http.Handler {
 		return handlers.CORS(
-			handlers.AllowedOrigins([]string{"https://xinxun.us", "https://stoneform.co.id", "https://api.stoneform.co.id", "http://localhost:3000"}),
+			handlers.AllowedOrigins([]string{"https://xinxun.us", "https://webhook-v2.kytapay.com", "https://api.stoneform.co.id", "http://localhost:3000"}),
 			handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
 			handlers.AllowedHeaders([]string{"Content-Type", "Authorization", "X-VLA-KEY", "X-CRON-KEY"}),
 			handlers.AllowCredentials(),
@@ -40,8 +40,7 @@ func InitRouter() *mux.Router {
 	// Rate limiter untuk cron: 1000/jam
 	cronLimiter := middleware.NewIPRateLimiter(1000, time.Hour)
 	// Rate limiter untuk webhook: 500/ip, whitelist, sliding window
-	// Empty whitelist means all IPs are allowed (rate limited only)
-	webhookLimiter := middleware.NewWebhookLimiter(500, time.Hour, []string{})
+	webhookLimiter := middleware.NewWebhookLimiter(500, time.Hour, []string{"127.0.0.1" /* tambahkan IP whitelist di sini */})
 
 	sfxcrController := controllers.NewSFXCRController(database.DB)
 
@@ -52,26 +51,11 @@ func InitRouter() *mux.Router {
 	// Cron endpoint for daily returns (protected via X-CRON-KEY header)
 	api.Handle("/cron/daily-returns", cronLimiter.Middleware(http.HandlerFunc(users.CronDailyReturnsHandler))).Methods(http.MethodPost)
 
-	// Webhook wrapper to bypass CORS restrictions
-	webhookWrapper := func(handler http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Allow all origins for webhook callbacks
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-			if r.Method == http.MethodOptions {
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
-			handler.ServeHTTP(w, r)
-		})
-	}
-
 	// Kytapay webhook (no auth, whitelist, sliding window)
-	api.Handle("/callback/payments", webhookWrapper(webhookLimiter.Middleware(http.HandlerFunc(users.KytaWebhookHandler)))).Methods(http.MethodPost, http.MethodOptions)
+	api.Handle("/callback/payments", webhookLimiter.Middleware(http.HandlerFunc(users.KytaWebhookHandler))).Methods(http.MethodPost)
 
 	// Kytapay payout callback
-	api.Handle("/callback/payouts", webhookWrapper(webhookLimiter.Middleware(http.HandlerFunc(admins.KytaPayoutCallbackHandler)))).Methods(http.MethodPost, http.MethodOptions)
+	api.Handle("/callback/payouts", webhookLimiter.Middleware(http.HandlerFunc(admins.KytaPayoutCallbackHandler))).Methods(http.MethodPost)
 
 	// Example protected endpoint using JWT middleware
 	api.Handle("/ping", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
