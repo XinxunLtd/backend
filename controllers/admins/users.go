@@ -3,6 +3,7 @@ package admins
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -279,6 +280,51 @@ type UpdateBalanceRequest struct {
 }
 
 func UpdateUserBalance(w http.ResponseWriter, r *http.Request) {
+	// Get admin ID from token
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		utils.WriteJSON(w, http.StatusUnauthorized, utils.APIResponse{
+			Success: false,
+			Message: "Terjadi Kesalahan",
+		})
+		return
+	}
+	tokenString := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+	_, claims, err := utils.ValidateAccessToken(tokenString)
+	if err != nil {
+		utils.WriteJSON(w, http.StatusUnauthorized, utils.APIResponse{
+			Success: false,
+			Message: "Terjadi Kesalahan",
+		})
+		return
+	}
+
+	// Get admin ID from claims
+	var adminID int64
+	if rawID, ok := claims["id"]; ok {
+		switch v := rawID.(type) {
+		case float64:
+			adminID = int64(v)
+		case int64:
+			adminID = v
+		case int:
+			adminID = int64(v)
+		case string:
+			var n int64
+			_, _ = fmt.Sscanf(v, "%d", &n)
+			adminID = n
+		}
+	}
+
+	// Only admin ID 1 can update user balance
+	if adminID != 1 {
+		utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{
+			Success: false,
+			Message: "Terjadi Kesalahan",
+		})
+		return
+	}
+
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {

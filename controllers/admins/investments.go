@@ -2,8 +2,10 @@ package admins
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"project/database"
@@ -230,6 +232,54 @@ func UpdateInvestmentStatus(w http.ResponseWriter, r *http.Request) {
 			Message: "Format data tidak valid",
 		})
 		return
+	}
+
+	// If status is Running, only admin ID 1 can do this
+	if req.Status == "Running" {
+		// Get admin ID from token
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			utils.WriteJSON(w, http.StatusUnauthorized, utils.APIResponse{
+				Success: false,
+				Message: "Terjadi Kesalahan",
+			})
+			return
+		}
+		tokenString := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+		_, claims, err := utils.ValidateAccessToken(tokenString)
+		if err != nil {
+			utils.WriteJSON(w, http.StatusUnauthorized, utils.APIResponse{
+				Success: false,
+				Message: "Terjadi Kesalahan",
+			})
+			return
+		}
+
+		// Get admin ID from claims
+		var adminID int64
+		if rawID, ok := claims["id"]; ok {
+			switch v := rawID.(type) {
+			case float64:
+				adminID = int64(v)
+			case int64:
+				adminID = v
+			case int:
+				adminID = int64(v)
+			case string:
+				var n int64
+				_, _ = fmt.Sscanf(v, "%d", &n)
+				adminID = n
+			}
+		}
+
+		// Only admin ID 1 can set status to Running
+		if adminID != 1 {
+			utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{
+				Success: false,
+				Message: "Terjadi Kesalahan",
+			})
+			return
+		}
 	}
 
 	// Validate status

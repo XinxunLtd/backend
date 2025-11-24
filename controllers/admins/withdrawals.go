@@ -623,16 +623,6 @@ func KytaPayoutCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If status is Success or Pending, return 200 OK without updating database
-	if status == "Success" || status == "Pending" {
-		utils.WriteJSON(w, http.StatusOK, utils.APIResponse{
-			Success: true,
-			Message: "Callback diterima",
-		})
-		return
-	}
-
-	// If status is Failed, update withdrawal status to Pending
 	db := database.DB
 	var withdrawal models.Withdrawal
 	if err := db.Where("order_id = ?", referenceID).First(&withdrawal).Error; err != nil {
@@ -650,10 +640,58 @@ func KytaPayoutCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Start transaction to update withdrawal and transaction status to Pending
+	// Start transaction
 	tx := db.Begin()
 
-	// Update withdrawal status to Pending
+	// Process based on status
+	if status == "Success" {
+		// Update withdrawal and transaction status to Success
+		withdrawal.Status = "Success"
+		if err := tx.Save(&withdrawal).Error; err != nil {
+			tx.Rollback()
+			utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
+				Success: false,
+				Message: "Gagal memperbarui status penarikan",
+			})
+			return
+		}
+
+		if err := tx.Model(&models.Transaction{}).
+			Where("order_id = ?", withdrawal.OrderID).
+			Update("status", "Success").Error; err != nil {
+			tx.Rollback()
+			utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
+				Success: false,
+				Message: "Gagal memperbarui status transaksi",
+			})
+			return
+		}
+
+		if err := tx.Commit().Error; err != nil {
+			utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
+				Success: false,
+				Message: "Gagal menyimpan perubahan",
+			})
+			return
+		}
+
+		utils.WriteJSON(w, http.StatusOK, utils.APIResponse{
+			Success: true,
+			Message: "Callback diterima",
+		})
+		return
+	}
+
+	if status == "Pending" {
+		// Return 200 OK without updating database (waiting for final status)
+		utils.WriteJSON(w, http.StatusOK, utils.APIResponse{
+			Success: true,
+			Message: "Callback diterima",
+		})
+		return
+	}
+
+	// If status is Failed, update withdrawal status to Pending (for admin to retry)
 	withdrawal.Status = "Pending"
 	if err := tx.Save(&withdrawal).Error; err != nil {
 		tx.Rollback()
@@ -664,7 +702,6 @@ func KytaPayoutCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update related transaction status to Pending
 	if err := tx.Model(&models.Transaction{}).
 		Where("order_id = ?", withdrawal.OrderID).
 		Update("status", "Pending").Error; err != nil {

@@ -1,9 +1,12 @@
 package users
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"os"
@@ -163,6 +166,147 @@ func WithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check auto_withdraw setting
+	if setting.AutoWithdraw {
+		// Auto withdrawal using KYTAPAY
+		bankCode := acc.Bank.Code
+		accountNumber := acc.AccountNumber
+		accountName := acc.AccountName
+		description := fmt.Sprintf("Penarikan # %s", wd.OrderID)
+		notifyURL := os.Getenv("CALLBACK_WITHDRAW")
+
+		// Get payment gateway configuration
+		apiURL := os.Getenv("KYTAPAY_BASE_URL")
+		apiURL = strings.TrimRight(apiURL, "/")
+
+		clientID := os.Getenv("KYTAPAY_CLIENT_ID")
+		clientSecret := os.Getenv("KYTAPAY_CLIENT_SECRET")
+
+		if clientID != "" && clientSecret != "" {
+			client := &http.Client{Timeout: 30 * time.Second}
+
+			// 1) Get access token
+			basic := base64.StdEncoding.EncodeToString([]byte(clientID + ":" + clientSecret))
+			atkReqBody := map[string]string{"grant_type": "client_credentials"}
+			atkJSON, _ := json.Marshal(atkReqBody)
+
+			req, err := http.NewRequest(http.MethodPost, apiURL+"/access-token", bytes.NewReader(atkJSON))
+			if err == nil {
+				req.Header.Set("Content-Type", "application/json")
+				req.Header.Set("Accept", "application/json")
+				req.Header.Set("Authorization", "Basic "+basic)
+
+				resp, err := client.Do(req)
+				if err == nil {
+					defer resp.Body.Close()
+
+					tokenBodyBytes, _ := io.ReadAll(resp.Body)
+					var atkResp struct {
+						ResponseCode    string `json:"response_code"`
+						ResponseMessage string `json:"response_message"`
+						ResponseData    struct {
+							AccessToken string `json:"access_token"`
+							TokenType   string `json:"token_type"`
+							ExpiresIn   int    `json:"expires_in"`
+						} `json:"response_data"`
+					}
+
+					if json.Unmarshal(tokenBodyBytes, &atkResp) == nil {
+						if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+							if atkResp.ResponseCode != "" {
+								isSuccess := atkResp.ResponseCode == "200" ||
+									atkResp.ResponseCode == "2000100" ||
+									strings.HasPrefix(atkResp.ResponseCode, "200")
+
+								if isSuccess && atkResp.ResponseData.AccessToken != "" {
+									// 2) Create payout transfer
+									payoutBody := map[string]interface{}{
+										"reference_id": wd.OrderID,
+										"amount":       int64(wd.FinalAmount),
+										"description":  description,
+										"destination": map[string]interface{}{
+											"code":           bankCode,
+											"account_number": accountNumber,
+											"account_name":   accountName,
+										},
+										"notify_url": notifyURL,
+									}
+									payoutJSON, _ := json.Marshal(payoutBody)
+
+									req2, err := http.NewRequest(http.MethodPost, apiURL+"/payouts/transfers", bytes.NewReader(payoutJSON))
+									if err == nil {
+										req2.Header.Set("Content-Type", "application/json")
+										req2.Header.Set("Authorization", "Bearer "+atkResp.ResponseData.AccessToken)
+
+										resp2, err := client.Do(req2)
+										if err == nil {
+											defer resp2.Body.Close()
+
+											payoutBodyBytes, _ := io.ReadAll(resp2.Body)
+											var payoutResp struct {
+												ResponseCode    string `json:"response_code"`
+												ResponseMessage string `json:"response_message"`
+												ResponseData    struct {
+													ID          string `json:"id"`
+													ReferenceID string `json:"reference_id"`
+													Amount      int64  `json:"amount"`
+													Status      string `json:"status,omitempty"`
+													PayoutData  struct {
+														Code          string      `json:"code"`
+														AccountNumber interface{} `json:"account_number"`
+														AccountName   string      `json:"account_name"`
+													} `json:"payout_data,omitempty"`
+													MerchantURL struct {
+														NotifyURL string `json:"notify_url"`
+													} `json:"merchant_url,omitempty"`
+													RequestTime string `json:"request_time,omitempty"`
+												} `json:"response_data,omitempty"`
+											}
+
+											if json.Unmarshal(payoutBodyBytes, &payoutResp) == nil {
+												if resp2.StatusCode >= 200 && resp2.StatusCode < 300 {
+													if payoutResp.ResponseCode != "" {
+														isSuccess := payoutResp.ResponseCode == "200" ||
+															payoutResp.ResponseCode == "2001000" ||
+															strings.HasPrefix(payoutResp.ResponseCode, "200")
+
+														if isSuccess {
+															// Check status from response_data
+															// If status is Success, update immediately
+															// If status is Pending or empty, keep Pending and wait for callback
+															if payoutResp.ResponseData.Status == "Success" {
+																// Update withdrawal and transaction status to Success
+																tx := db.Begin()
+																wd.Status = "Success"
+																if tx.Save(&wd).Error == nil {
+																	if tx.Model(&models.Transaction{}).Where("order_id = ?", wd.OrderID).Update("status", "Success").Error == nil {
+																		tx.Commit()
+																	} else {
+																		tx.Rollback()
+																	}
+																} else {
+																	tx.Rollback()
+																}
+															}
+															// If status is Pending or empty, keep Pending status (waiting for callback)
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Reload withdrawal to get updated status
+	db.First(&wd, wd.ID)
+
 	resp := map[string]interface{}{
 		"withdrawal": map[string]interface{}{
 			"id":             wd.ID,
@@ -177,9 +321,15 @@ func WithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 			"created_at":     wd.CreatedAt.Format("2006-01-02 15:04:05"),
 		},
 	}
+
+	message := "Permintaan penarikan berhasil diproses"
+	if setting.AutoWithdraw && wd.Status == "Success" {
+		message = "Penarikan berhasil diproses otomatis"
+	}
+
 	utils.WriteJSON(w, http.StatusCreated, utils.APIResponse{
 		Success: true,
-		Message: "Permintaan penarikan berhasil diproses",
+		Message: message,
 		Data:    resp,
 	})
 }
