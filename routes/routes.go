@@ -51,6 +51,9 @@ func InitRouter() *mux.Router {
 	// Cron endpoint for daily returns (protected via X-CRON-KEY header)
 	api.Handle("/cron/daily-returns", cronLimiter.Middleware(http.HandlerFunc(users.CronDailyReturnsHandler))).Methods(http.MethodPost)
 
+	// Cron endpoint for expired payments handler (protected via X-CRON-KEY header)
+	api.Handle("/cron/expired-handlers", cronLimiter.Middleware(http.HandlerFunc(users.ExpiredPaymentsHandler))).Methods(http.MethodPost)
+
 	// Kytapay webhook (no auth, whitelist, sliding window)
 	api.Handle("/callback/payments", webhookLimiter.Middleware(http.HandlerFunc(users.KytaWebhookHandler))).Methods(http.MethodPost)
 

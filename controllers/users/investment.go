@@ -308,18 +308,9 @@ func CreateInvestmentHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if expiredStr := strings.TrimSpace(payResp.ResponseData.ExpiresAt); expiredStr != "" {
-			if t, err := parseTimeFlexible(expiredStr); err == nil {
-				tt := t.UTC()
-				expiredAt = &tt
-			} else {
-				t := time.Now().Add(15 * time.Minute)
-				expiredAt = &t
-			}
-		} else {
-			t := time.Now().Add(15 * time.Minute)
-			expiredAt = &t
-		}
+		// Always set expired_at to 15 minutes from now
+		t := time.Now().Add(15 * time.Minute)
+		expiredAt = &t
 
 		payment := models.Payment{
 			InvestmentID: inv.ID,
@@ -442,9 +433,87 @@ func ListInvestmentsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get order IDs for payment lookup
+	orderIDs := make([]string, 0, len(rows))
+	productIDs := make([]uint, 0, len(rows))
+	for _, inv := range rows {
+		orderIDs = append(orderIDs, inv.OrderID)
+		productIDs = append(productIDs, inv.ProductID)
+	}
+
+	// Fetch payments to get expired_at
+	var payments []models.Payment
+	paymentMap := make(map[string]*models.Payment)
+	if len(orderIDs) > 0 {
+		db.Where("order_id IN ?", orderIDs).Find(&payments)
+		for i := range payments {
+			paymentMap[payments[i].OrderID] = &payments[i]
+		}
+	}
+
+	// Fetch products to get product names
+	var products []models.Product
+	productMap := make(map[uint]string)
+	if len(productIDs) > 0 {
+		db.Where("id IN ?", productIDs).Find(&products)
+		for _, product := range products {
+			productMap[product.ID] = product.Name
+		}
+	}
+
+	// Check and update expired investments
+	now := time.Now()
+	for i := range rows {
+		inv := &rows[i]
+		if inv.Status == "Pending" {
+			if payment, ok := paymentMap[inv.OrderID]; ok && payment.ExpiredAt != nil {
+				if payment.ExpiredAt.Before(now) || payment.ExpiredAt.Equal(now) {
+					// Update payment and investment status to expired/cancelled
+					tx := db.Begin()
+					if err := tx.Model(&models.Payment{}).Where("order_id = ?", inv.OrderID).Update("status", "Expired").Error; err == nil {
+						if err := tx.Model(&models.Investment{}).Where("id = ?", inv.ID).Update("status", "Cancelled").Error; err == nil {
+							if err := tx.Model(&models.Transaction{}).Where("order_id = ?", inv.OrderID).Update("status", "Failed").Error; err == nil {
+								tx.Commit()
+								// Update local data
+								inv.Status = "Cancelled"
+							} else {
+								tx.Rollback()
+							}
+						} else {
+							tx.Rollback()
+						}
+					} else {
+						tx.Rollback()
+					}
+				}
+			}
+		}
+	}
+
+	// Build response with expired_at from payment and product name
+	type InvestmentWithExpired struct {
+		models.Investment
+		ExpiredAt *string `json:"expired_at,omitempty"`
+		Product   *string `json:"product,omitempty"`
+	}
+	responseRows := make([]InvestmentWithExpired, 0, len(rows))
+	for _, inv := range rows {
+		item := InvestmentWithExpired{
+			Investment: inv,
+		}
+		if payment, ok := paymentMap[inv.OrderID]; ok && payment.ExpiredAt != nil {
+			expiredStr := payment.ExpiredAt.UTC().Format(time.RFC3339)
+			item.ExpiredAt = &expiredStr
+		}
+		if productName, ok := productMap[inv.ProductID]; ok {
+			item.Product = &productName
+		}
+		responseRows = append(responseRows, item)
+	}
+
 	// Build response with pagination
 	responseData := map[string]interface{}{
-		"data": rows,
+		"data": responseRows,
 		"pagination": map[string]interface{}{
 			"page":       page,
 			"limit":      limit,
@@ -838,6 +907,68 @@ func CronDailyReturnsHandler(w http.ResponseWriter, r *http.Request) {
 			return nil
 		})
 	}
+	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{Success: true, Message: "Cron executed", Data: map[string]interface{}{"processed": processed}})
+}
+
+// POST /v3/cron/expired-handlers
+func ExpiredPaymentsHandler(w http.ResponseWriter, r *http.Request) {
+	key := r.Header.Get("X-CRON-KEY")
+	if key == "" || key != os.Getenv("CRON_KEY") {
+		utils.WriteJSON(w, http.StatusUnauthorized, utils.APIResponse{Success: false, Message: "Unauthorized"})
+		return
+	}
+
+	db := database.DB
+	now := time.Now()
+
+	// Find all payments that are expired (expired_at <= now) and still Pending
+	var expiredPayments []models.Payment
+	if err := db.Where("status = ? AND expired_at IS NOT NULL AND expired_at <= ?", "Pending", now).Find(&expiredPayments).Error; err != nil {
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Terjadi kesalahan"})
+		return
+	}
+
+	processed := 0
+	for i := range expiredPayments {
+		payment := expiredPayments[i]
+		
+		// Update payment, investment, and transaction in a transaction
+		err := db.Transaction(func(tx *gorm.DB) error {
+			// Update payment status to Expired
+			if err := tx.Model(&models.Payment{}).Where("id = ?", payment.ID).Update("status", "Expired").Error; err != nil {
+				return err
+			}
+
+			// Get investment by order_id
+			var investment models.Investment
+			if err := tx.Where("order_id = ?", payment.OrderID).First(&investment).Error; err != nil {
+				// If investment not found, continue (payment might be orphaned)
+				return nil
+			}
+
+			// Update investment status to Cancelled (only if still Pending)
+			if investment.Status == "Pending" {
+				if err := tx.Model(&models.Investment{}).Where("id = ?", investment.ID).Update("status", "Cancelled").Error; err != nil {
+					return err
+				}
+			}
+
+			// Update transaction status to Failed
+			if err := tx.Model(&models.Transaction{}).Where("order_id = ?", payment.OrderID).Update("status", "Failed").Error; err != nil {
+				// Transaction might not exist, continue anyway
+				return nil
+			}
+
+			processed++
+			return nil
+		})
+
+		if err != nil {
+			// Log error but continue processing other payments
+			continue
+		}
+	}
+
 	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{Success: true, Message: "Cron executed", Data: map[string]interface{}{"processed": processed}})
 }
 
