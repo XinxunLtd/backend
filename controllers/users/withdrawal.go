@@ -318,7 +318,7 @@ func WithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 			"account_name":   acc.AccountName,
 			"account_number": MaskAccountNumber(acc.AccountNumber),
 			"status":         wd.Status,
-			"created_at":     wd.CreatedAt.Format("2006-01-02 15:04:05"),
+			"created_at":     wd.CreatedAt.Format(time.RFC3339),
 		},
 	}
 
@@ -401,7 +401,7 @@ func ListWithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 			"status":          wd.Status,
 			"withdrawal_time": wd.CreatedAt.Format(time.RFC3339),
 			"account_name":    acc.AccountName,
-			"account_number":  acc.AccountNumber,
+			"account_number":  MaskAccountNumber(acc.AccountNumber),
 			"bank_name":       bank.Name,
 		})
 	}
@@ -451,5 +451,5 @@ func MaskAccountNumber(accountNumber string) string {
 	if len(accountNumber) <= 6 {
 		return accountNumber
 	}
-	return accountNumber[:3] + "****" + accountNumber[len(accountNumber)-3:]
+	return accountNumber[:4] + "****" + accountNumber[len(accountNumber)-4:]
 }
