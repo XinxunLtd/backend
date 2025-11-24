@@ -151,7 +151,7 @@ func ForumSubmitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-	err = r.ParseMultipartForm(2 << 20) // 2MB
+	err = r.ParseMultipartForm(10 << 20) // 10MB
 	if err != nil {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Invalid form data"})
 		return
@@ -168,12 +168,20 @@ func ForumSubmitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 	ext := strings.ToLower(filepath.Ext(handler.Filename))
-	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Gambar harus JPG/PNG"})
+	allowedExts := map[string]bool{
+		".jpg":  true,
+		".jpeg": true,
+		".png":  true,
+		".heic": true,
+		".heif": true,
+		".webp": true,
+	}
+	if !allowedExts[ext] {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Gambar harus JPG/PNG/HEIC/HEIF/WEBP"})
 		return
 	}
-	if handler.Size > 2<<20 {
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Gambar maksimal 2MB"})
+	if handler.Size > 10<<20 {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Gambar maksimal 10MB"})
 		return
 	}
 
@@ -185,19 +193,78 @@ func ForumSubmitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	detected := http.DetectContentType(buf[:n])
+	
+	// Check if it's HEIC/HEIF format (Go standard library doesn't support these, so we'll upload directly)
+	isHEIC := ext == ".heic" || ext == ".heif" || detected == "image/heic" || detected == "image/heif"
+	isWEBP := ext == ".webp" || detected == "image/webp"
+	
+	// For HEIC/HEIF/WEBP, skip decode/encode and upload directly to S3 (safe with S3)
+	if isHEIC || isWEBP {
+		// Check withdrawal in last 3 days
+		var count int64
+		threeDaysAgo := time.Now().AddDate(0, 0, -3)
+		db := database.DB
+		db.Model(&models.Withdrawal{}).Where("user_id = ? AND created_at >= ?", uid, threeDaysAgo).Count(&count)
+		if count == 0 {
+			utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Tidak ada penarikan dalam 3 hari terakhir"})
+			return
+		}
+		
+		// Rewind file and read all bytes
+		if _, err := file.Seek(0, 0); err != nil {
+			utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Gagal membaca gambar"})
+			return
+		}
+		imageBytes, err := io.ReadAll(file)
+		if err != nil {
+			utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Gagal membaca gambar"})
+			return
+		}
+		// Prepare a ReadSeeker for S3 upload and presign
+		reader := bytes.NewReader(imageBytes)
+		
+		// Upload directly without decode/encode
+		randomNum := time.Now().UnixNano()
+		uidUint := uid
+		imgName := strconv.FormatUint(uint64(uidUint), 10) + "_" + strconv.FormatInt(randomNum, 10) + ext
+		presignedURL, upErr := utils.UploadToS3AndPresign(imgName, reader, int64(len(imageBytes)), 3600)
+		if upErr != nil {
+			utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Failed to upload image. Please try again later."})
+			return
+		}
+		_ = presignedURL
+		
+		forum := models.Forum{
+			UserID:      uidUint,
+			Description: description,
+			Image:       imgName,
+			Status:      "Pending",
+		}
+		if err := db.Create(&forum).Error; err != nil {
+			utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "DB error"})
+			return
+		}
+		utils.WriteJSON(w, http.StatusCreated, utils.APIResponse{Success: true, Message: "Postingangan terkirim, menunggu persetujuan."})
+		return
+	}
+	
+	// For JPG/PNG, validate MIME type and decode/encode to sanitize
 	if detected != "image/jpeg" && detected != "image/png" {
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Gambar harus JPG/PNG"})
+		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Gambar harus JPG/PNG/HEIC/HEIF/WEBP"})
 		return
 	}
 
 	// Rewind and decode/re-encode image to sanitize content
 	// Need the full image bytes: combine the head we read with the rest
-	rest, err := io.ReadAll(file)
+	if _, err := file.Seek(0, 0); err != nil {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Gagal membaca gambar"})
+		return
+	}
+	imageBytes, err := io.ReadAll(file)
 	if err != nil {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Gagal membaca gambar"})
 		return
 	}
-	imageBytes := append(buf[:n], rest...)
 
 	// Placeholder: perform malware scan here (e.g., send imageBytes to ClamAV or cloud scanner)
 	// If scan fails, return an error. For now we only leave a comment and proceed.
@@ -223,7 +290,7 @@ func ForumSubmitHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	default:
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Gambar harus JPG/PNG"})
+		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Gambar harus JPG/PNG/HEIC/HEIF/WEBP"})
 		return
 	}
 
