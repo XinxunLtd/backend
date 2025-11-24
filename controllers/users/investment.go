@@ -994,7 +994,7 @@ func createKytaVASafe(ctx context.Context, client *http.Client, baseURL, accessT
 		"notify_url":   notifyURL,
 		"success_url":  successURL,
 		"failed_url":   failedURL,
-		"expires_time": 900,
+		"expires_time": 86400,
 	}
 	body, _ := json.Marshal(payload)
 
