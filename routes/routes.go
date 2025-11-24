@@ -22,6 +22,17 @@ func optionsHandler(w http.ResponseWriter, r *http.Request) {
 func InitRouter() *mux.Router {
 	r := mux.NewRouter()
 
+	// Health check endpoint for Docker health checks (root level)
+	r.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":    "healthy",
+			"timestamp": time.Now().Unix(),
+			"service":   "xinxun-api",
+		})
+	})).Methods(http.MethodGet)
+
 	// Add CORS middleware
 	r.Use(func(next http.Handler) http.Handler {
 		return handlers.CORS(
@@ -79,7 +90,7 @@ func InitRouter() *mux.Router {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":    "healthy",
 			"timestamp": time.Now().Unix(),
-			"service":   "stoneform-api",
+			"service":   "xinxun-api",
 		})
 	})).Methods(http.MethodGet)
 
