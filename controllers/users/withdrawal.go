@@ -399,7 +399,7 @@ func ListWithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 			"final_amount":    wd.FinalAmount,
 			"order_id":        wd.OrderID,
 			"status":          wd.Status,
-			"withdrawal_time": wd.CreatedAt.Format("2006-01-02 15:04:05"),
+			"withdrawal_time": wd.CreatedAt.Format(time.RFC3339),
 			"account_name":    acc.AccountName,
 			"account_number":  acc.AccountNumber,
 			"bank_name":       bank.Name,
