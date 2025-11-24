@@ -40,7 +40,8 @@ func InitRouter() *mux.Router {
 	// Rate limiter untuk cron: 1000/jam
 	cronLimiter := middleware.NewIPRateLimiter(1000, time.Hour)
 	// Rate limiter untuk webhook: 500/ip, whitelist, sliding window
-	webhookLimiter := middleware.NewWebhookLimiter(500, time.Hour, []string{"127.0.0.1" /* tambahkan IP whitelist di sini */})
+	// Empty whitelist means all IPs are allowed (rate limited only)
+	webhookLimiter := middleware.NewWebhookLimiter(500, time.Hour, []string{})
 
 	sfxcrController := controllers.NewSFXCRController(database.DB)
 
@@ -51,11 +52,26 @@ func InitRouter() *mux.Router {
 	// Cron endpoint for daily returns (protected via X-CRON-KEY header)
 	api.Handle("/cron/daily-returns", cronLimiter.Middleware(http.HandlerFunc(users.CronDailyReturnsHandler))).Methods(http.MethodPost)
 
+	// Webhook wrapper to bypass CORS restrictions
+	webhookWrapper := func(handler http.HandlerFunc) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Allow all origins for webhook callbacks
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			handler(w, r)
+		})
+	}
+
 	// Kytapay webhook (no auth, whitelist, sliding window)
-	api.Handle("/callback/payments", webhookLimiter.Middleware(http.HandlerFunc(users.KytaWebhookHandler))).Methods(http.MethodPost)
+	api.Handle("/callback/payments", webhookWrapper(webhookLimiter.Middleware(http.HandlerFunc(users.KytaWebhookHandler)))).Methods(http.MethodPost, http.MethodOptions)
 
 	// Kytapay payout callback
-	api.Handle("/callback/payouts", webhookLimiter.Middleware(http.HandlerFunc(admins.KytaPayoutCallbackHandler))).Methods(http.MethodPost)
+	api.Handle("/callback/payouts", webhookWrapper(webhookLimiter.Middleware(http.HandlerFunc(admins.KytaPayoutCallbackHandler)))).Methods(http.MethodPost, http.MethodOptions)
 
 	// Example protected endpoint using JWT middleware
 	api.Handle("/ping", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

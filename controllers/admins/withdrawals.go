@@ -575,6 +575,17 @@ func RejectWithdrawal(w http.ResponseWriter, r *http.Request) {
 
 // POST /v3/callback/payouts
 func KytaPayoutCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	// Allow all origins for webhook callbacks (server-to-server)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	
+	// Handle OPTIONS preflight
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	var payload struct {
 		CallbackCode    string `json:"callback_code"`
 		CallbackMessage string `json:"callback_message"`
@@ -604,7 +615,7 @@ func KytaPayoutCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	referenceID := payload.CallbackData.ReferenceID
-	status := payload.CallbackData.Status
+	status := strings.TrimSpace(payload.CallbackData.Status)
 
 	if referenceID == "" {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
@@ -613,6 +624,9 @@ func KytaPayoutCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	// Normalize status (case-insensitive)
+	status = strings.Title(strings.ToLower(status))
 
 	// Validate status
 	if status != "Success" && status != "Pending" && status != "Failed" {
@@ -645,7 +659,7 @@ func KytaPayoutCallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Process based on status
 	if status == "Success" {
-		// Update withdrawal and transaction status to Success
+		// Update withdrawal and transaction status to Success (idempotent - can be called multiple times)
 		withdrawal.Status = "Success"
 		if err := tx.Save(&withdrawal).Error; err != nil {
 			tx.Rollback()
@@ -656,6 +670,7 @@ func KytaPayoutCallbackHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Update related transaction status to Success
 		if err := tx.Model(&models.Transaction{}).
 			Where("order_id = ?", withdrawal.OrderID).
 			Update("status", "Success").Error; err != nil {
