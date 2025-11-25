@@ -198,6 +198,7 @@ func TeamDataHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Get query parameters
 	searchQuery := strings.TrimSpace(r.URL.Query().Get("search"))
+	statusQuery := strings.TrimSpace(r.URL.Query().Get("status"))
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
 
@@ -215,14 +216,30 @@ func TeamDataHandler(w http.ResponseWriter, r *http.Request) {
 	filteredUsers := users
 	if searchQuery != "" {
 		searchLower := strings.ToLower(searchQuery)
-		filteredUsers = []models.User{}
+		tempUsers := []models.User{}
 		for _, u := range users {
 			nameMatch := strings.Contains(strings.ToLower(u.Name), searchLower)
 			numberMatch := strings.Contains(strings.ToLower(u.Number), searchLower)
 			if nameMatch || numberMatch {
-				filteredUsers = append(filteredUsers, u)
+				tempUsers = append(tempUsers, u)
 			}
 		}
+		filteredUsers = tempUsers
+	}
+
+	// Apply status filter if provided
+	if statusQuery != "" {
+		statusLower := strings.ToLower(statusQuery)
+		tempUsers := []models.User{}
+		for _, u := range filteredUsers {
+			userStatus := strings.ToLower(u.InvestmentStatus)
+			if statusLower == "active" && userStatus == "active" {
+				tempUsers = append(tempUsers, u)
+			} else if statusLower == "inactive" && userStatus == "inactive" {
+				tempUsers = append(tempUsers, u)
+			}
+		}
+		filteredUsers = tempUsers
 	}
 
 	// Calculate pagination
@@ -246,6 +263,7 @@ func TeamDataHandler(w http.ResponseWriter, r *http.Request) {
 			data = append(data, map[string]interface{}{
 				"name":         u.Name,
 				"number":       censorNumber(u.Number),
+				"profile":      u.Profile,
 				"active":       strings.ToLower(u.InvestmentStatus) == "active",
 				"total_invest": u.TotalInvest,
 			})

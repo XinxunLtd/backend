@@ -16,6 +16,7 @@ type User struct {
 	SpinTicket       *uint     `gorm:"column:spin_ticket;default:0" json:"spin_ticket"`
 	Status           string    `gorm:"type:enum('Active','Inactive','Suspend');default:'Active'" json:"status"`
 	InvestmentStatus string    `gorm:"type:enum('Active','Inactive');default:'Inactive'" json:"investment_status"`
+	Profile          *string   `gorm:"type:varchar(255);null" json:"profile,omitempty"`
 	CreatedAt        time.Time `json:"-"`
 	UpdatedAt        time.Time `json:"-"`
 }

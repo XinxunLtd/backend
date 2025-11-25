@@ -74,16 +74,17 @@ func ForumListHandler(w http.ResponseWriter, r *http.Request) {
 		ids = append(ids, id)
 	}
 
-	// Query user names and numbers
+	// Query user names, numbers, and profiles
 	var users []models.User
-	db.Select("id", "name", "number").Where("id IN ?", ids).Find(&users)
+	db.Select("id", "name", "number", "profile").Where("id IN ?", ids).Find(&users)
 	type userInfo struct {
-		Name   string
-		Number string
+		Name    string
+		Number  string
+		Profile *string
 	}
 	userMap := make(map[uint]userInfo)
 	for _, u := range users {
-		userMap[u.ID] = userInfo{u.Name, u.Number}
+		userMap[u.ID] = userInfo{u.Name, u.Number, u.Profile}
 	}
 
 	// Build response
@@ -91,6 +92,7 @@ func ForumListHandler(w http.ResponseWriter, r *http.Request) {
 		ID          uint    `json:"id"`
 		Name        string  `json:"name"`
 		Number      string  `json:"number"`
+		Profile     *string `json:"profile,omitempty"`
 		Reward      float64 `json:"reward"`
 		Description string  `json:"description"`
 		Image       string  `json:"image"`
@@ -104,6 +106,7 @@ func ForumListHandler(w http.ResponseWriter, r *http.Request) {
 			ID:          f.ID,
 			Name:        u.Name,
 			Number:      maskNumber(u.Number),
+			Profile:     u.Profile,
 			Reward:      f.Reward,
 			Description: f.Description,
 			Image:       f.Image,

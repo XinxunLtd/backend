@@ -197,6 +197,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 				"total_withdraw":   int64(TotalWithdraw),
 				"spin_ticket":      newUser.SpinTicket,
 				"active":           strings.ToLower(newUser.InvestmentStatus) == "active",
+				"profile":          newUser.Profile,
 			},
 			"application": map[string]interface{}{
 				"name":            setting.Name,

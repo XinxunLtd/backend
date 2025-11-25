@@ -120,3 +120,28 @@ func UploadToS3AndPresign(objectName string, file io.ReadSeeker, fileSize int64,
 
 	return url, nil
 }
+
+// DeleteFromS3 deletes a file from AWS S3
+func DeleteFromS3(objectName string) error {
+	bucket := os.Getenv("S3_BUCKET")
+	if bucket == "" {
+		return fmt.Errorf("S3_BUCKET not set in environment")
+	}
+
+	cfg, err := getS3Config()
+	if err != nil {
+		return err
+	}
+
+	client := s3.NewFromConfig(cfg)
+
+	_, err = client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(objectName),
+	})
+	if err != nil {
+		return fmt.Errorf("S3 delete failed: %w", err)
+	}
+
+	return nil
+}

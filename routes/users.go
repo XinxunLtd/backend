@@ -32,6 +32,10 @@ func UsersRoutes(api *mux.Router) {
 	// User info (read)
 	api.Handle("/users/info", userLimiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(users.InfoHandler)))).Methods(http.MethodGet)
 
+	// User profile (update and delete)
+	api.Handle("/users/profile", userLimiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(users.UpdateProfileHandler)))).Methods(http.MethodPut)
+	api.Handle("/users/profile", userLimiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(users.DeleteProfileHandler)))).Methods(http.MethodDelete)
+
 	// Get Bank List, Add, Edit, Delete
 	api.Handle("/bank", userLimiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(controllers.BankListHandler)))).Methods(http.MethodGet)
 	api.Handle("/users/bank", userLimiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(users.AddBankAccountHandler)))).Methods(http.MethodPost)

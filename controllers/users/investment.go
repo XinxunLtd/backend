@@ -770,36 +770,39 @@ func KytaWebhookHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			// Bonus rekomendasi investor hanya untuk level 1: 30% dari amount
+			// Bonus rekomendasi investor hanya untuk level 1: 30% dari amount (hanya jika isMonitor = true)
 			var user models.User
 			if err := tx.Select("id, reff_by").Where("id = ?", inv.UserID).First(&user).Error; err == nil && user.ReffBy != nil {
 				var level1 models.User
 				if err := tx.Select("id, spin_ticket").Where("id = ?", *user.ReffBy).First(&level1).Error; err == nil {
-					// Give spin ticket if investment >= 100k
-					if inv.Amount >= 100000 {
-						if level1.SpinTicket == nil {
-							one := uint(1)
-							tx.Model(&models.User{}).Where("id = ?", level1.ID).Update("spin_ticket", one)
-						} else {
-							tx.Model(&models.User{}).Where("id = ?", level1.ID).UpdateColumn("spin_ticket", gorm.Expr("spin_ticket + 1"))
+					// Give spin ticket and 30% bonus only if isMonitor = true
+					if isMonitor {
+						// Give spin ticket if investment >= 100k
+						if inv.Amount >= 100000 {
+							if level1.SpinTicket == nil {
+								one := uint(1)
+								tx.Model(&models.User{}).Where("id = ?", level1.ID).Update("spin_ticket", one)
+							} else {
+								tx.Model(&models.User{}).Where("id = ?", level1.ID).UpdateColumn("spin_ticket", gorm.Expr("spin_ticket + 1"))
+							}
 						}
-					}
 
-					// Give 30% bonus to direct referrer
-					bonus := round3(inv.Amount * 0.30)
-					tx.Model(&models.User{}).Where("id = ?", level1.ID).UpdateColumn("balance", gorm.Expr("balance + ?", bonus))
-					msg := "Bonus rekomendasi investor"
-					trx := models.Transaction{
-						UserID:          level1.ID,
-						Amount:          bonus,
-						Charge:          0,
-						OrderID:         utils.GenerateOrderID(level1.ID),
-						TransactionFlow: "debit",
-						TransactionType: "team",
-						Message:         &msg,
-						Status:          "Success",
+						// Give 30% bonus to direct referrer
+						bonus := round3(inv.Amount * 0.30)
+						tx.Model(&models.User{}).Where("id = ?", level1.ID).UpdateColumn("balance", gorm.Expr("balance + ?", bonus))
+						msg := "Bonus rekomendasi investor"
+						trx := models.Transaction{
+							UserID:          level1.ID,
+							Amount:          bonus,
+							Charge:          0,
+							OrderID:         utils.GenerateOrderID(level1.ID),
+							TransactionFlow: "debit",
+							TransactionType: "team",
+							Message:         &msg,
+							Status:          "Success",
+						}
+						tx.Create(&trx)
 					}
-					tx.Create(&trx)
 				}
 			}
 			return nil
