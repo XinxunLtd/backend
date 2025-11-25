@@ -7,7 +7,6 @@ import (
 	"image/png"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
