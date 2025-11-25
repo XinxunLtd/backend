@@ -71,6 +71,16 @@ func TeamInvitedHandler(w http.ResponseWriter, r *http.Request) {
 		return n
 	}
 
+	countInactive := func(users []models.User) int {
+		n := 0
+		for _, u := range users {
+			if strings.ToLower(u.InvestmentStatus) == "inactive" {
+				n++
+			}
+		}
+		return n
+	}
+
 	// Helper to sum total_invest
 	sumTotalInvest := func(users []models.User) float64 {
 		total := 0.0
@@ -95,6 +105,7 @@ func TeamInvitedHandler(w http.ResponseWriter, r *http.Request) {
 			strconv.Itoa(level): map[string]interface{}{
 				"count":        len(users),
 				"active":       countActive(users),
+				"inactive":     countInactive(users),
 				"total_invest": sumTotalInvest(users),
 			},
 		}
@@ -109,9 +120,9 @@ func TeamInvitedHandler(w http.ResponseWriter, r *http.Request) {
 	// If /api/users/team-invited (all levels)
 	resp := map[string]interface{}{
 		"level": map[string]interface{}{
-			"1": map[string]interface{}{"count": len(level1), "active": countActive(level1), "total_invest": sumTotalInvest(level1)},
-			"2": map[string]interface{}{"count": len(level2), "active": countActive(level2), "total_invest": sumTotalInvest(level2)},
-			"3": map[string]interface{}{"count": len(level3), "active": countActive(level3), "total_invest": sumTotalInvest(level3)},
+			"1": map[string]interface{}{"count": len(level1), "active": countActive(level1), "inactive": countInactive(level1), "total_invest": sumTotalInvest(level1)},
+			"2": map[string]interface{}{"count": len(level2), "active": countActive(level2), "inactive": countInactive(level2), "total_invest": sumTotalInvest(level2)},
+			"3": map[string]interface{}{"count": len(level3), "active": countActive(level3), "inactive": countInactive(level3), "total_invest": sumTotalInvest(level3)},
 		},
 	}
 	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{
