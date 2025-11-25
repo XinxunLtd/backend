@@ -46,6 +46,35 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Handle profile image upload
+	// Check if profile is explicitly set to null (don't update)
+	profileValue := strings.TrimSpace(r.FormValue("profile"))
+	if profileValue == "null" {
+		// Profile is set to null, don't update profile field
+		// Just save name if it was updated
+		if err := db.Save(&user).Error; err != nil {
+			utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Gagal menyimpan data"})
+			return
+		}
+
+		// Build response
+		responseData := map[string]interface{}{
+			"name": user.Name,
+		}
+		if user.Profile != nil {
+			responseData["profile"] = *user.Profile
+		} else {
+			responseData["profile"] = nil
+		}
+
+		utils.WriteJSON(w, http.StatusOK, utils.APIResponse{
+			Success: true,
+			Message: "Profile berhasil diperbarui",
+			Data:    responseData,
+		})
+		return
+	}
+
+	// If profile is not null, check if file is uploaded
 	file, handler, err := r.FormFile("profile")
 	if err == nil && handler != nil {
 		defer file.Close()
