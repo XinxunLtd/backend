@@ -151,7 +151,7 @@ func (l *IPRateLimiter) Middleware(next http.Handler) http.Handler {
 			if envLimit > 0 {
 				limit = envLimit
 			} else if l.instanceMax <= 0 {
-				limit = getEnvInt("RATE_IP_AUTH", 5)
+				limit = getEnvInt("RATE_IP_AUTH", 10)
 			}
 		}
 
@@ -250,7 +250,7 @@ func (l *UserRateLimiter) getLimitsForCategory(cat string, role string) (int, ti
 	// defaults
 	switch cat {
 	case "auth":
-		return getEnvInt("RATE_USER_AUTH", 5), time.Minute
+		return getEnvInt("RATE_USER_AUTH", 10), time.Minute
 	case "upload":
 		return getEnvInt("RATE_USER_UPLOAD", 10), time.Minute
 	case "admin":

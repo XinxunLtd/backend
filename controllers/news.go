@@ -81,11 +81,11 @@ func NewsLoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Build response data
 	responseData := map[string]interface{}{
-		"id":       user.ID,
-		"name":     user.Name,
-		"number":   user.Number,
-		"balance":  user.Balance,
-		"status":   user.Status,
+		"id":        user.ID,
+		"name":      user.Name,
+		"number":    user.Number,
+		"balance":   user.Balance,
+		"status":    user.Status,
 		"reff_code": user.ReffCode,
 	}
 
@@ -146,9 +146,35 @@ func NewsRewardHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update user balance
-	newBalance := user.Balance + req.Amount
-	if err := db.Model(&user).Update("balance", newBalance).Error; err != nil {
+	// Update user balance and create transaction in a single transaction
+	err := db.Transaction(func(tx *gorm.DB) error {
+		// Update user balance
+		newBalance := user.Balance + req.Amount
+		if err := tx.Model(&user).Update("balance", newBalance).Error; err != nil {
+			return err
+		}
+
+		// Create transaction record
+		msg := "Bonus publish berita terbaru"
+		trx := models.Transaction{
+			UserID:          user.ID,
+			Amount:          req.Amount,
+			Charge:          0,
+			OrderID:         utils.GenerateOrderID(user.ID),
+			TransactionFlow: "debit",
+			TransactionType: "bonus",
+			Message:         &msg,
+			Status:          "Success",
+		}
+
+		if err := tx.Create(&trx).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
 			Message: "Gagal menambahkan saldo",
@@ -162,4 +188,3 @@ func NewsRewardHandler(w http.ResponseWriter, r *http.Request) {
 		Data:    nil,
 	})
 }
-
