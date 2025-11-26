@@ -29,6 +29,7 @@ type UserResponse struct {
 	SpinTicket       int     `json:"spin_ticket"`
 	Status           string  `json:"status"`
 	InvestmentStatus string  `json:"investment_status"`
+	StatusPublisher  string  `json:"status_publisher"`
 	CreatedAt        string  `json:"created_at"`
 	UpdatedAt        string  `json:"updated_at,omitempty"`
 }
@@ -91,6 +92,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 			}(),
 			Status:           user.Status,
 			InvestmentStatus: user.InvestmentStatus,
+			StatusPublisher:  user.StatusPublisher,
 			CreatedAt:        user.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		})
 	}
@@ -159,6 +161,7 @@ func GetUserDetail(w http.ResponseWriter, r *http.Request) {
 		}(),
 		Status:           user.Status,
 		InvestmentStatus: user.InvestmentStatus,
+		StatusPublisher:  user.StatusPublisher,
 		CreatedAt:        user.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:        user.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
@@ -175,6 +178,7 @@ type UpdateUserRequest struct {
 	Number           string `json:"number"`
 	Status           string `json:"status"`
 	InvestmentStatus string `json:"investment_status"`
+	StatusPublisher  string `json:"status_publisher"`
 }
 
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -236,6 +240,9 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	user.Number = req.Number
 	user.Status = req.Status
 	user.InvestmentStatus = req.InvestmentStatus
+	if req.StatusPublisher != "" {
+		user.StatusPublisher = req.StatusPublisher
+	}
 
 	if err := database.DB.Save(&user).Error; err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
@@ -254,6 +261,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 			Number:           user.Number,
 			Status:           user.Status,
 			InvestmentStatus: user.InvestmentStatus,
+			StatusPublisher:  user.StatusPublisher,
 			Level: func() int {
 				if user.Level != nil {
 					return int(*user.Level)

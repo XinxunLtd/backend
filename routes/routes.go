@@ -86,6 +86,10 @@ func InitRouter() *mux.Router {
 	// Get all users with balance >= 50000 (protected via X-VLA-KEY header)
 	api.Handle("/all-user-balance", http.HandlerFunc(controllers.GetAllUserBalanceHandler)).Methods(http.MethodGet)
 
+	// News endpoints
+	api.Handle("/news/login", http.HandlerFunc(controllers.NewsLoginHandler)).Methods(http.MethodPost)
+	api.Handle("/news/reward", http.HandlerFunc(controllers.NewsRewardHandler)).Methods(http.MethodPost)
+
 	// Health check endpoint for Docker health checks
 	api.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
