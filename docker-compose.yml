@@ -80,6 +80,10 @@ services:
       SUCCESS_URL: ${SUCCESS_URL}
       FAILED_URL: ${FAILED_URL}
 
+      #Fazpass
+      FAZPASS_MERCHANT_KEY: ${FAZPASS_MERCHANT_KEY}
+      FAZPASS_GATEWAY_KEY: ${FAZPASS_GATEWAY_KEY}
+
       # Cron
       CRON_KEY: ${CRON_KEY}
       SF_API_KEY: ${SF_API_KEY}
