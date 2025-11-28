@@ -163,12 +163,33 @@ func (l *IPRateLimiter) Middleware(next http.Handler) http.Handler {
 		w.Header().Set("X-RateLimit-Remaining", fmt.Sprintf("%d", remaining))
 
 		if count > limit {
-			w.Header().Set("Retry-After", fmt.Sprintf("%d", int(l.window.Seconds())))
+			// Calculate retry_after based on oldest request in window
+			var retryAfter int
+			if len(filtered) > 0 {
+				// Find oldest timestamp in filtered (first one after filtering)
+				oldest := filtered[0]
+				for _, ts := range filtered {
+					if ts < oldest {
+						oldest = ts
+					}
+				}
+				// Oldest request will expire at oldest + windowNs
+				expireAt := oldest + windowNs
+				retryAfterNs := expireAt - now
+				if retryAfterNs > 0 {
+					retryAfter = int(retryAfterNs / 1e9) // Convert nanoseconds to seconds
+				} else {
+					retryAfter = 1 // At least 1 second
+				}
+			} else {
+				retryAfter = int(l.window.Seconds())
+			}
+			w.Header().Set("Retry-After", fmt.Sprintf("%d", retryAfter))
 			w.WriteHeader(http.StatusTooManyRequests)
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
-				"message": fmt.Sprintf("Terlalu banyak permintaan, Coba lagi dalam %d detik", int(l.window.Seconds())),
-				"data":    map[string]interface{}{"retry_after_seconds": int(l.window.Seconds())},
+				"message": "Terlalu banyak permintaan, Coba lagi nanti",
+				"data":    map[string]interface{}{"retry_after_seconds": retryAfter},
 			})
 			return
 		}
@@ -308,7 +329,7 @@ func (l *UserRateLimiter) Middleware(next http.Handler) http.Handler {
 			retry := time.Duration(pi.Until-now) * time.Nanosecond
 			w.Header().Set("Retry-After", fmt.Sprintf("%d", int(retry.Seconds())))
 			w.WriteHeader(http.StatusTooManyRequests)
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Too many requests (user), temporary penalty in effect.", "data": map[string]interface{}{"retry_after_seconds": int(retry.Seconds())}})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Terlalu banyak permintaan, Coba lagi nanti", "data": map[string]interface{}{"retry_after_seconds": int(retry.Seconds())}})
 			l.mu.Unlock()
 			return
 		}
@@ -338,7 +359,7 @@ func (l *UserRateLimiter) Middleware(next http.Handler) http.Handler {
 			l.penalty[key] = penaltyInfo{Level: newLevel, Until: now + int64(time.Duration(durationSec)*time.Second)}
 			w.Header().Set("Retry-After", fmt.Sprintf("%d", durationSec))
 			w.WriteHeader(http.StatusTooManyRequests)
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Too many requests (user). Temporary penalty applied.", "data": map[string]interface{}{"retry_after_seconds": durationSec}})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Terlalu banyak permintaan, Coba lagi nanti", "data": map[string]interface{}{"retry_after_seconds": durationSec}})
 			l.mu.Unlock()
 			return
 		}
@@ -526,9 +547,31 @@ func (l *WebhookLimiter) Middleware(next http.Handler) http.Handler {
 		count := len(filtered)
 		l.mu.Unlock()
 		if count > l.maxReq {
+			// Calculate retry_after based on oldest request in window
+			var retryAfter int
+			if len(filtered) > 0 {
+				// Find oldest timestamp in filtered
+				oldest := filtered[0]
+				for _, ts := range filtered {
+					if ts < oldest {
+						oldest = ts
+					}
+				}
+				// Oldest request will expire at oldest + windowNs
+				windowNs := int64(l.window)
+				expireAt := oldest + windowNs
+				retryAfterNs := expireAt - now
+				if retryAfterNs > 0 {
+					retryAfter = int(retryAfterNs / 1e9) // Convert nanoseconds to seconds
+				} else {
+					retryAfter = 1 // At least 1 second
+				}
+			} else {
+				retryAfter = int(l.window.Seconds())
+			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Too many webhook requests. Please try again later.", "data": map[string]interface{}{"retry_after_seconds": int(l.window.Seconds())}})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Too many webhook requests. Please try again later.", "data": map[string]interface{}{"retry_after_seconds": retryAfter}})
 			return
 		}
 		next.ServeHTTP(w, r)
