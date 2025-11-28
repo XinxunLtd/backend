@@ -26,6 +26,12 @@ func UsersRoutes(api *mux.Router) {
 	api.Handle("/logout", userLimiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(auth.LogoutHandler)))).Methods(http.MethodPost)
 	api.Handle("/logout-all", userLimiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(auth.LogoutAllHandler)))).Methods(http.MethodPost)
 
+	// Forgot Password
+	api.Handle("/auth/forgot-password/request-otp", loginLimiter.Middleware(http.HandlerFunc(auth.ForgotPasswordRequestOTPHandler))).Methods(http.MethodPost)
+	api.Handle("/auth/forgot-password/resend-otp", loginLimiter.Middleware(http.HandlerFunc(auth.ForgotPasswordResendOTPHandler))).Methods(http.MethodPost)
+	api.Handle("/auth/forgot-password/verify-otp", loginLimiter.Middleware(http.HandlerFunc(auth.ForgotPasswordVerifyOTPHandler))).Methods(http.MethodPost)
+	api.Handle("/auth/forgot-password/reset-password", loginLimiter.Middleware(http.HandlerFunc(auth.ForgotPasswordResetPasswordHandler))).Methods(http.MethodPost)
+
 	// Change password (write)
 	api.Handle("/users/change-password", userLimiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(users.ChangePasswordHandler)))).Methods(http.MethodPost)
 

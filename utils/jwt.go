@@ -145,8 +145,6 @@ func GenerateAccessToken(userID uint, role string) (string, error) {
 		IssuedAt:  jwt.NewNumericDate(now),
 		NotBefore: jwt.NewNumericDate(now),
 		ID:        jti,
-		Audience:  jwt.ClaimStrings{os.Getenv("JWT_AUD")},
-		Issuer:    os.Getenv("JWT_ISS"),
 	}
 
 	// Custom claims wrapper
