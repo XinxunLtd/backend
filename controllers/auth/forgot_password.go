@@ -407,7 +407,7 @@ func ForgotPasswordVerifyOTPHandler(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{
 		Success: true,
-		Message: "Kode Verifikasi berhasil, Silahkan ubah password Anda.",
+		Message: "Kode Verifikasi benar, Silahkan ubah password Anda.",
 		Data: map[string]interface{}{
 			"token": resetToken,
 		},

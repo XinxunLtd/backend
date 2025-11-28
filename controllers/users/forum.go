@@ -111,7 +111,7 @@ func ForumListHandler(w http.ResponseWriter, r *http.Request) {
 			Description: f.Description,
 			Image:       f.Image,
 			Status:      f.Status,
-			Time:        f.CreatedAt.Format("2006-01-02 15:04:05"),
+			Time:        f.CreatedAt.Format(time.RFC3339),
 		})
 	}
 
@@ -119,9 +119,9 @@ func ForumListHandler(w http.ResponseWriter, r *http.Request) {
 	responseData := map[string]interface{}{
 		"data": resp,
 		"pagination": map[string]interface{}{
-			"page":       page,
-			"limit":      limit,
-			"total_rows": totalRows,
+			"page":        page,
+			"limit":       limit,
+			"total_rows":  totalRows,
 			"total_pages": totalPages,
 		},
 	}
@@ -196,11 +196,11 @@ func ForumSubmitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	detected := http.DetectContentType(buf[:n])
-	
+
 	// Check if it's HEIC/HEIF format (Go standard library doesn't support these, so we'll upload directly)
 	isHEIC := ext == ".heic" || ext == ".heif" || detected == "image/heic" || detected == "image/heif"
 	isWEBP := ext == ".webp" || detected == "image/webp"
-	
+
 	// For HEIC/HEIF/WEBP, skip decode/encode and upload directly to S3 (safe with S3)
 	if isHEIC || isWEBP {
 		// Check withdrawal in last 3 days
@@ -212,7 +212,7 @@ func ForumSubmitHandler(w http.ResponseWriter, r *http.Request) {
 			utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Tidak ada penarikan dalam 3 hari terakhir"})
 			return
 		}
-		
+
 		// Rewind file and read all bytes
 		if _, err := file.Seek(0, 0); err != nil {
 			utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Gagal membaca gambar"})
@@ -225,7 +225,7 @@ func ForumSubmitHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		// Prepare a ReadSeeker for S3 upload and presign
 		reader := bytes.NewReader(imageBytes)
-		
+
 		// Upload directly without decode/encode
 		randomNum := time.Now().UnixNano()
 		uidUint := uid
@@ -236,7 +236,7 @@ func ForumSubmitHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = presignedURL
-		
+
 		forum := models.Forum{
 			UserID:      uidUint,
 			Description: description,
@@ -250,7 +250,7 @@ func ForumSubmitHandler(w http.ResponseWriter, r *http.Request) {
 		utils.WriteJSON(w, http.StatusCreated, utils.APIResponse{Success: true, Message: "Postingangan terkirim, menunggu persetujuan."})
 		return
 	}
-	
+
 	// For JPG/PNG, validate MIME type and decode/encode to sanitize
 	if detected != "image/jpeg" && detected != "image/png" {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Gambar harus JPG/PNG/HEIC/HEIF/WEBP"})
