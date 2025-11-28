@@ -151,7 +151,7 @@ func (l *IPRateLimiter) Middleware(next http.Handler) http.Handler {
 			if envLimit > 0 {
 				limit = envLimit
 			} else if l.instanceMax <= 0 {
-				limit = getEnvInt("RATE_IP_AUTH", 10)
+				limit = getEnvInt("RATE_IP_AUTH", 50)
 			}
 		}
 
