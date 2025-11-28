@@ -168,6 +168,7 @@ func (l *IPRateLimiter) Middleware(next http.Handler) http.Handler {
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
 				"message": fmt.Sprintf("Terlalu banyak permintaan, Coba lagi dalam %d detik", int(l.window.Seconds())),
+				"data":    map[string]interface{}{"retry_after_seconds": int(l.window.Seconds())},
 			})
 			return
 		}
@@ -250,14 +251,14 @@ func (l *UserRateLimiter) getLimitsForCategory(cat string, role string) (int, ti
 	// defaults
 	switch cat {
 	case "auth":
-		return getEnvInt("RATE_USER_AUTH", 10), time.Minute
+		return getEnvInt("RATE_USER_AUTH", 50), time.Minute
 	case "upload":
 		return getEnvInt("RATE_USER_UPLOAD", 10), time.Minute
 	case "admin":
 		if role == "admin" {
 			return getEnvInt("RATE_USER_ADMIN", 500), time.Minute
 		}
-		return getEnvInt("RATE_USER_ADMIN", 10), time.Minute
+		return getEnvInt("RATE_USER_ADMIN", 50), time.Minute
 	default:
 		return getEnvInt("RATE_USER_API", 100), time.Minute
 	}
@@ -307,7 +308,7 @@ func (l *UserRateLimiter) Middleware(next http.Handler) http.Handler {
 			retry := time.Duration(pi.Until-now) * time.Nanosecond
 			w.Header().Set("Retry-After", fmt.Sprintf("%d", int(retry.Seconds())))
 			w.WriteHeader(http.StatusTooManyRequests)
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Too many requests (user), temporary penalty in effect."})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Too many requests (user), temporary penalty in effect.", "data": map[string]interface{}{"retry_after_seconds": int(retry.Seconds())}})
 			l.mu.Unlock()
 			return
 		}
@@ -337,7 +338,7 @@ func (l *UserRateLimiter) Middleware(next http.Handler) http.Handler {
 			l.penalty[key] = penaltyInfo{Level: newLevel, Until: now + int64(time.Duration(durationSec)*time.Second)}
 			w.Header().Set("Retry-After", fmt.Sprintf("%d", durationSec))
 			w.WriteHeader(http.StatusTooManyRequests)
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Too many requests (user). Temporary penalty applied."})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Too many requests (user). Temporary penalty applied.", "data": map[string]interface{}{"retry_after_seconds": durationSec}})
 			l.mu.Unlock()
 			return
 		}
@@ -527,7 +528,7 @@ func (l *WebhookLimiter) Middleware(next http.Handler) http.Handler {
 		if count > l.maxReq {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Too many webhook requests. Please try again later."})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Too many webhook requests. Please try again later.", "data": map[string]interface{}{"retry_after_seconds": int(l.window.Seconds())}})
 			return
 		}
 		next.ServeHTTP(w, r)
