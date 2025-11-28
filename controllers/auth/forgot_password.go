@@ -110,13 +110,13 @@ func ForgotPasswordRequestOTPHandler(w http.ResponseWriter, r *http.Request) {
 		if err == gorm.ErrRecordNotFound {
 			utils.WriteJSON(w, http.StatusNotFound, utils.APIResponse{
 				Success: false,
-				Message: "Nomor tidak terdaftar di database",
+				Message: "Nomor telepon tidak ditemukan",
 			})
 			return
 		}
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
-			Message: "Server error",
+			Message: "Terjadi kesalahan. Silakan coba lagi nanti.",
 		})
 		return
 	}
@@ -139,7 +139,7 @@ func ForgotPasswordRequestOTPHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
-			Message: "Gagal mengirim OTP. Silakan coba lagi nanti.",
+			Message: "Gagal mengirim Kode Verifikasi. Silakan coba lagi nanti.",
 		})
 		return
 	}
@@ -156,7 +156,7 @@ func ForgotPasswordRequestOTPHandler(w http.ResponseWriter, r *http.Request) {
 	if err := db.Create(&otpReq).Error; err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
-			Message: "Gagal menyimpan data OTP",
+			Message: "Terjadi kesalahan. Silakan coba lagi nanti.",
 		})
 		return
 	}
@@ -166,7 +166,7 @@ func ForgotPasswordRequestOTPHandler(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{
 		Success: true,
-		Message: "OTP berhasil dikirim",
+		Message: "Kode Verifikasi berhasil dikirim",
 		Data: map[string]interface{}{
 			"request_id":          fazpassResp.Data.ID,
 			"number":              req.Number,
@@ -234,13 +234,13 @@ func ForgotPasswordResendOTPHandler(w http.ResponseWriter, r *http.Request) {
 		if err == gorm.ErrRecordNotFound {
 			utils.WriteJSON(w, http.StatusNotFound, utils.APIResponse{
 				Success: false,
-				Message: "Nomor tidak terdaftar di database",
+				Message: "Nomor telepon tidak ditemukan",
 			})
 			return
 		}
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
-			Message: "Server error",
+			Message: "Terjadi kesalahan. Silakan coba lagi nanti.",
 		})
 		return
 	}
@@ -263,7 +263,7 @@ func ForgotPasswordResendOTPHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
-			Message: "Gagal mengirim OTP. Silakan coba lagi nanti.",
+			Message: "Gagal mengirim Kode Verifikasi. Silakan coba lagi nanti.",
 		})
 		return
 	}
@@ -284,7 +284,7 @@ func ForgotPasswordResendOTPHandler(w http.ResponseWriter, r *http.Request) {
 	if err := db.Create(&otpReq).Error; err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
-			Message: "Gagal menyimpan data OTP",
+			Message: "Terjadi kesalahan. Silakan coba lagi nanti.",
 		})
 		return
 	}
@@ -294,7 +294,7 @@ func ForgotPasswordResendOTPHandler(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{
 		Success: true,
-		Message: "OTP berhasil dikirim ulang",
+		Message: "Kode Verifikasi berhasil dikirim ulang",
 		Data: map[string]interface{}{
 			"request_id":          fazpassResp.Data.ID,
 			"number":              req.Number,
@@ -317,7 +317,7 @@ func ForgotPasswordVerifyOTPHandler(w http.ResponseWriter, r *http.Request) {
 	if req.OTP == "" {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
 			Success: false,
-			Message: "OTP harus diisi",
+			Message: "Kode Verifikasi harus diisi",
 		})
 		return
 	}
@@ -325,7 +325,7 @@ func ForgotPasswordVerifyOTPHandler(w http.ResponseWriter, r *http.Request) {
 	if req.RequestID == "" {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
 			Success: false,
-			Message: "request_id harus diisi",
+			Message: "Terjadi kesalahan. Silakan coba lagi nanti.",
 		})
 		return
 	}
@@ -338,13 +338,13 @@ func ForgotPasswordVerifyOTPHandler(w http.ResponseWriter, r *http.Request) {
 		if err == gorm.ErrRecordNotFound {
 			utils.WriteJSON(w, http.StatusNotFound, utils.APIResponse{
 				Success: false,
-				Message: "Request OTP tidak ditemukan atau sudah digunakan",
+				Message: "Request Kode Verifikasi tidak ditemukan atau sudah digunakan",
 			})
 			return
 		}
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
-			Message: "Server error",
+			Message: "Terjadi kesalahan. Silakan coba lagi nanti.",
 		})
 		return
 	}
@@ -353,7 +353,7 @@ func ForgotPasswordVerifyOTPHandler(w http.ResponseWriter, r *http.Request) {
 	if time.Now().After(otpReq.ExpiresAt) {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
 			Success: false,
-			Message: "OTP sudah kadaluarsa",
+			Message: "Kode Verifikasi sudah kadaluarsa",
 		})
 		return
 	}
@@ -376,7 +376,7 @@ func ForgotPasswordVerifyOTPHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
 			Success: false,
-			Message: "Kode OTP salah",
+			Message: "Kode Verifikasi salah",
 		})
 		return
 	}
@@ -386,7 +386,7 @@ func ForgotPasswordVerifyOTPHandler(w http.ResponseWriter, r *http.Request) {
 	if err := db.Save(&otpReq).Error; err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
-			Message: "Gagal memperbarui status OTP",
+			Message: "Terjadi kesalahan. Silakan coba lagi nanti.",
 		})
 		return
 	}
@@ -396,7 +396,7 @@ func ForgotPasswordVerifyOTPHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
-			Message: "Gagal membuat token",
+			Message: "Terjadi kesalahan. Silakan coba lagi nanti.",
 		})
 		return
 	}
@@ -407,7 +407,7 @@ func ForgotPasswordVerifyOTPHandler(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{
 		Success: true,
-		Message: "Kode OTP benar",
+		Message: "Kode Verifikasi berhasil, Silahkan ubah password Anda.",
 		Data: map[string]interface{}{
 			"token": resetToken,
 		},
@@ -521,13 +521,13 @@ func ForgotPasswordResetPasswordHandler(w http.ResponseWriter, r *http.Request) 
 		if err == gorm.ErrRecordNotFound {
 			utils.WriteJSON(w, http.StatusNotFound, utils.APIResponse{
 				Success: false,
-				Message: "User tidak ditemukan",
+				Message: "Pengguna tidak ditemukan",
 			})
 			return
 		}
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
-			Message: "Server error",
+			Message: "Terjadi kesalahan. Silakan coba lagi nanti.",
 		})
 		return
 	}
@@ -537,7 +537,7 @@ func ForgotPasswordResetPasswordHandler(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
-			Message: "Gagal mengenkripsi password",
+			Message: "Terjadi kesalahan. Silakan coba lagi nanti.",
 		})
 		return
 	}
@@ -582,14 +582,14 @@ func ForgotPasswordResetPasswordHandler(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
-			Message: "Gagal memperbarui password",
+			Message: "Terjadi kesalahan. Silakan coba lagi nanti.",
 		})
 		return
 	}
 
 	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{
 		Success: true,
-		Message: "Password berhasil diubah",
+		Message: "Password berhasil diubah, Anda akan diarahkan ke halaman login dalam 5 detik",
 		Data:    nil,
 	})
 }
