@@ -213,7 +213,7 @@ func (l *OTPRateLimiter) CheckIPRateLimit(ip string) (bool, time.Duration, strin
 		// More than 5 requests in 30 minutes
 		waitTime := 30*time.Minute - elapsed
 		record.Count-- // Revert count
-		return false, waitTime, "Terlalu banyak permintaan dari IP ini. Coba lagi nanti."
+		return false, waitTime, "Terlalu banyak permintaan. Coba lagi nanti."
 	}
 
 	return true, 0, ""
