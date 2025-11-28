@@ -70,7 +70,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var exp time.Time
 	isApp := req.IsApp != nil && *req.IsApp
 	if isApp {
-		tokenExpiry = 7 * 24 * time.Hour // 7 days
+		tokenExpiry = 30 * 24 * time.Hour // 30 days
 		exp = time.Now().Add(tokenExpiry)
 	} else {
 		tokenExpiry = 15 * time.Minute // Default 15 minutes
