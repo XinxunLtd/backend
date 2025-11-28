@@ -129,12 +129,17 @@ func GenerateJWT(id int64, username, role string) (string, error) {
 
 // GenerateAccessToken issues a short-lived access token (default 15 minutes).
 func GenerateAccessToken(userID uint, role string) (string, error) {
+	return GenerateAccessTokenWithExpiry(userID, role, 15*time.Minute)
+}
+
+// GenerateAccessTokenWithExpiry issues an access token with custom expiry duration
+func GenerateAccessTokenWithExpiry(userID uint, role string, expiry time.Duration) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		return "", errors.New("JWT_SECRET is not set")
 	}
 	now := time.Now()
-	exp := now.Add(15 * time.Minute)
+	exp := now.Add(expiry)
 	jti, err := generateJTI(32)
 	if err != nil {
 		return "", err

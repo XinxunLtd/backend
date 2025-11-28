@@ -17,6 +17,7 @@ import (
 type LoginRequest struct {
 	Number   string `json:"number" validate:"required,phone8"`
 	Password string `json:"password" validate:"required,pwdmin"`
+	IsApp    *bool  `json:"is_app,omitempty"` // Optional: if true, token expires in 7 days
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -64,8 +65,20 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	// on successful login reset failed login counter
 	middleware.ResetFailedLogin(user.ID)
 
-	// generate access token (short-lived) and refresh token (stored in DB)
-	accessToken, err := utils.GenerateAccessToken(user.ID, "user")
+	// Determine token expiry based on is_app flag
+	var tokenExpiry time.Duration
+	var exp time.Time
+	isApp := req.IsApp != nil && *req.IsApp
+	if isApp {
+		tokenExpiry = 7 * 24 * time.Hour // 7 days
+		exp = time.Now().Add(tokenExpiry)
+	} else {
+		tokenExpiry = 15 * time.Minute // Default 15 minutes
+		exp = time.Now().Add(tokenExpiry)
+	}
+
+	// generate access token and refresh token (stored in DB)
+	accessToken, err := utils.GenerateAccessTokenWithExpiry(user.ID, "user", tokenExpiry)
 	if err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Gagal login"})
 		return
@@ -76,7 +89,6 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	signed := accessToken
-	exp := time.Now().Add(15 * time.Minute)
 
 	var TotalWithdraw float64
 	db.Model(&models.Withdrawal{}).

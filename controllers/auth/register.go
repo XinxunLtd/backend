@@ -23,6 +23,7 @@ type RegisterRequest struct {
 	Password             string `json:"password" validate:"required,pwdmin"`
 	PasswordConfirmation string `json:"password_confirmation" validate:"required,eqfield=Password"`
 	ReferralCode         string `json:"referral_code"`
+	IsApp                *bool  `json:"is_app,omitempty"` // Optional: if true, token expires in 7 days
 }
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
@@ -151,8 +152,20 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Determine token expiry based on is_app flag
+	var tokenExpiry time.Duration
+	var exp time.Time
+	isApp := req.IsApp != nil && *req.IsApp
+	if isApp {
+		tokenExpiry = 7 * 24 * time.Hour // 7 days
+		exp = time.Now().Add(tokenExpiry)
+	} else {
+		tokenExpiry = 15 * time.Minute // Default 15 minutes
+		exp = time.Now().Add(tokenExpiry)
+	}
+
 	// Generate access and refresh tokens
-	accessToken, err := utils.GenerateAccessToken(newUser.ID, "user")
+	accessToken, err := utils.GenerateAccessTokenWithExpiry(newUser.ID, "user", tokenExpiry)
 	if err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Gagal membuat token"})
 		return
@@ -163,7 +176,6 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	signed := accessToken
-	exp := time.Now().Add(15 * time.Minute)
 
 	var setting models.Setting
 	err = db.Model(&models.Setting{}).

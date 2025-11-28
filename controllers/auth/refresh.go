@@ -11,6 +11,7 @@ import (
 
 type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
+	IsApp        *bool  `json:"is_app,omitempty"` // Optional: if true, token expires in 7 days
 }
 
 // RefreshHandler exchanges a valid refresh token for a new access token and rotated refresh token
@@ -51,8 +52,20 @@ func RefreshHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Determine token expiry based on is_app flag
+	var tokenExpiry time.Duration
+	var exp time.Time
+	isApp := req.IsApp != nil && *req.IsApp
+	if isApp {
+		tokenExpiry = 7 * 24 * time.Hour // 7 days
+		exp = time.Now().Add(tokenExpiry)
+	} else {
+		tokenExpiry = 15 * time.Minute // Default 15 minutes
+		exp = time.Now().Add(tokenExpiry)
+	}
+
 	// issue new access token
-	accessToken, err := utils.GenerateAccessToken(rt.UserID, "user")
+	accessToken, err := utils.GenerateAccessTokenWithExpiry(rt.UserID, "user", tokenExpiry)
 	if err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Server error"})
 		return
@@ -63,7 +76,7 @@ func RefreshHandler(w http.ResponseWriter, r *http.Request) {
 		Message: "Successfully",
 		Data: map[string]interface{}{
 			"access_token":  accessToken,
-			"access_expire": time.Now().Add(15 * time.Minute).UTC().Format(time.RFC3339),
+			"access_expire": exp.UTC().Format(time.RFC3339),
 			"refresh_token": newJTI,
 		},
 	})
