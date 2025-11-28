@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -160,12 +161,16 @@ func ForgotPasswordRequestOTPHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Calculate retry_after_seconds based on current rate limit status
+	retryAfter := otpLimiter.GetRetryAfterSeconds(req.Number)
+
 	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{
 		Success: true,
 		Message: "OTP berhasil dikirim",
 		Data: map[string]interface{}{
-			"request_id": fazpassResp.Data.ID,
-			"number":     req.Number,
+			"request_id":          fazpassResp.Data.ID,
+			"number":              req.Number,
+			"retry_after_seconds": retryAfter,
 		},
 	})
 }
@@ -284,12 +289,16 @@ func ForgotPasswordResendOTPHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Calculate retry_after_seconds based on current rate limit status
+	retryAfter := otpLimiter.GetRetryAfterSeconds(req.Number)
+
 	utils.WriteJSON(w, http.StatusOK, utils.APIResponse{
 		Success: true,
 		Message: "OTP berhasil dikirim ulang",
 		Data: map[string]interface{}{
-			"request_id": fazpassResp.Data.ID,
-			"number":     req.Number,
+			"request_id":          fazpassResp.Data.ID,
+			"number":              req.Number,
+			"retry_after_seconds": retryAfter,
 		},
 	})
 }
@@ -458,6 +467,41 @@ func ForgotPasswordResetPasswordHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Get JTI from token to revoke it after use (one-time use)
+	jti, ok := claims["jti"].(string)
+	if !ok || jti == "" {
+		utils.WriteJSON(w, http.StatusUnauthorized, utils.APIResponse{
+			Success: false,
+			Message: "Token tidak valid",
+		})
+		return
+	}
+
+	// Check if token is already revoked (already used)
+	if RedisClient := utils.RedisClient; RedisClient != nil {
+		ctx := context.Background()
+		res, err := RedisClient.Get(ctx, "jwt:blacklist:"+jti).Result()
+		if err == nil && res == "1" {
+			utils.WriteJSON(w, http.StatusUnauthorized, utils.APIResponse{
+				Success: false,
+				Message: "Token sudah pernah digunakan",
+			})
+			return
+		}
+	} else if database.DB != nil {
+		var rec struct {
+			ID string `gorm:"primaryKey"`
+		}
+		err := database.DB.Table("revoked_tokens").Where("id = ?", jti).First(&rec).Error
+		if err == nil {
+			utils.WriteJSON(w, http.StatusUnauthorized, utils.APIResponse{
+				Success: false,
+				Message: "Token sudah pernah digunakan",
+			})
+			return
+		}
+	}
+
 	// Get user ID from token
 	userIDFloat, ok := claims["id"].(float64)
 	if !ok {
@@ -498,9 +542,44 @@ func ForgotPasswordResetPasswordHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Update password
-	user.Password = string(hashedPassword)
-	if err := db.Save(&user).Error; err != nil {
+	// Update password and revoke token in a transaction
+	err = db.Transaction(func(tx *gorm.DB) error {
+		// Update password
+		user.Password = string(hashedPassword)
+		if err := tx.Save(&user).Error; err != nil {
+			return err
+		}
+
+		// Revoke token (mark as used - one-time use)
+		// Calculate TTL from token expiration
+		var ttl time.Duration = 0
+		if expRaw, ok := claims["exp"]; ok {
+			switch v := expRaw.(type) {
+			case float64:
+				expTime := time.Unix(int64(v), 0)
+				ttl = time.Until(expTime)
+			case int64:
+				expTime := time.Unix(v, 0)
+				ttl = time.Until(expTime)
+			case int:
+				expTime := time.Unix(int64(v), 0)
+				ttl = time.Until(expTime)
+			}
+		}
+		if ttl < 0 {
+			ttl = 0
+		}
+
+		// Revoke the token
+		if err := utils.RevokeJTI(jti, ttl); err != nil {
+			// Log error but don't fail the transaction
+			// Token revocation is best-effort
+		}
+
+		return nil
+	})
+
+	if err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
 			Message: "Gagal memperbarui password",

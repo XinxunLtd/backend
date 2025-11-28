@@ -226,6 +226,56 @@ func (l *OTPRateLimiter) ResetPhoneLimit(phone string) {
 	delete(l.phoneRecords, phone)
 }
 
+// GetRetryAfterSeconds calculates retry_after_seconds for a phone number without modifying state
+func (l *OTPRateLimiter) GetRetryAfterSeconds(phone string) int {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	now := time.Now()
+	record, exists := l.phoneRecords[phone]
+
+	if !exists {
+		return 0
+	}
+
+	// Check if locked
+	if record.Locked {
+		if now.Before(record.LockedUntil) {
+			return int(record.LockedUntil.Sub(now).Seconds())
+		}
+		return 0
+	}
+
+	// Calculate retry_after based on count
+	elapsed := now.Sub(record.FirstReqAt)
+	switch record.Count {
+	case 1:
+		return 0
+	case 2:
+		if elapsed < time.Minute {
+			return int((time.Minute - elapsed).Seconds())
+		}
+		return 0
+	case 3:
+		if elapsed < 5*time.Minute {
+			return int((5*time.Minute - elapsed).Seconds())
+		}
+		return 0
+	case 4:
+		if elapsed < 10*time.Minute {
+			return int((10*time.Minute - elapsed).Seconds())
+		}
+		return 0
+	case 5:
+		return int(time.Hour.Seconds())
+	default:
+		if record.Locked && now.Before(record.LockedUntil) {
+			return int(record.LockedUntil.Sub(now).Seconds())
+		}
+		return 0
+	}
+}
+
 // GetClientIP extracts the client IP from the request
 func GetClientIP(r *http.Request) string {
 	// Check X-Forwarded-For header first
