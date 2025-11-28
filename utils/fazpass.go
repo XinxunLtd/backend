@@ -28,23 +28,23 @@ func GetUserFriendlyMessage(code string) string {
 	switch code {
 	// HTTP 400
 	case "4000201":
-		return "Gateway tidak ditemukan. Silakan hubungi administrator."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4000201."
 	case "4000205":
-		return "Merchant tidak aktif. Silakan hubungi administrator."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4000205."
 	case "4000206":
-		return "Gateway tidak aktif. Silakan hubungi administrator."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4000206."
 	case "4000207":
-		return "Kredensial tidak tersedia. Silakan hubungi administrator."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4000207."
 
 	// HTTP 401
 	case "4010207":
-		return "Identitas pengguna tidak tersedia."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4010207."
 	case "4010208":
 		return "Terlalu banyak permintaan. Silakan coba lagi nanti."
 
 	// HTTP 402
 	case "4020201":
-		return "Saldo tidak mencukupi. Silakan hubungi administrator."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4020201."
 
 	// HTTP 403
 	case "4030201":
@@ -56,31 +56,31 @@ func GetUserFriendlyMessage(code string) string {
 
 	// HTTP 404
 	case "4040201":
-		return "Transaksi tidak ditemukan."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4040201."
 	case "4040202":
-		return "Inisiasi tidak ditemukan."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4040202."
 
 	// HTTP 405
 	case "4050201":
-		return "Provider tidak ditemukan."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4050201."
 	case "4050202":
-		return "Tipe OTP tidak ditemukan."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4050202."
 	case "4050203":
-		return "Harga tidak ditemukan."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4050203."
 	case "4050204":
-		return "Operator tidak ditemukan."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4050204."
 
 	// HTTP 422
 	case "4220201":
-		return "Data yang dikirim tidak valid."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4220201."
 	case "4220202":
-		return "Anda harus memasukkan OTP atau URL."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4220202."
 	case "4220205", "4220206":
-		return "Nomor telepon yang Anda masukkan tidak valid."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 42202056."
 	case "4220207":
-		return "Anda tidak diizinkan mengirim untuk provider ini."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4220207."
 	case "4220208":
-		return "Parameter tidak lengkap atau format tidak benar."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 4220208."
 	case "4220209":
 		return "OTP yang Anda masukkan tidak valid."
 	case "4220210":
@@ -90,68 +90,68 @@ func GetUserFriendlyMessage(code string) string {
 	case "4290201":
 		return "Anda telah gagal memverifikasi nomor. Silakan coba lagi dalam 24 jam."
 	case "4290202":
-		return "Kuota POC Anda telah habis. Silakan hubungi account manager."
+		return "Kuota POC Anda telah habis."
 
 	// HTTP 500
 	case "5000200":
-		return "Terjadi kesalahan pada server. Silakan coba lagi nanti."
+		return "Terjadi kesalahan. Silakan coba lagi nanti. Silakan hubungi Customer Service, Kode error: 5000200."
 	case "5000202":
-		return "Gagal membuat record. Silakan coba lagi nanti."
+		return "Terjadi kesalahan. Silakan coba lagi nanti. Silakan hubungi Customer Service, Kode error: 5000202."
 
 	// HTTP 501
 	case "5010201":
-		return "OTP tidak diizinkan."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 5010201."
 
 	// HTTP 503
 	case "5030201":
-		return "Layanan pihak ketiga tidak tersedia. Silakan coba lagi nanti."
+		return "Terjadi kesalahan. Silakan coba lagi nanti. Silakan hubungi Customer Service, Kode error: 5030201."
 	case "5030202":
-		return "Gagal memparse data respons."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 5030202."
 	case "5030204":
-		return "Base URL kosong."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 5030204."
 	case "5030205":
-		return "Gagal memparse URL."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 5030205."
 	case "5030206":
-		return "Vendor sedang down."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 5030206."
 	case "5030207":
-		return "Operator untuk channel ini sedang down."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 5030207."
 	case "5030200":
-		return "Channel error: URL provider tidak valid."
+		return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 5030200."
 
 	default:
 		// Check by HTTP status code prefix
 		if strings.HasPrefix(code, "400") {
-			return "Permintaan tidak valid. Silakan periksa data yang dikirim."
+			return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 400."
 		}
 		if strings.HasPrefix(code, "401") {
-			return "Tidak diizinkan. Silakan periksa kredensial Anda."
+			return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 401."
 		}
 		if strings.HasPrefix(code, "402") {
-			return "Pembayaran diperlukan."
+			return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 402."
 		}
 		if strings.HasPrefix(code, "403") {
-			return "Akses ditolak."
+			return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 403."
 		}
 		if strings.HasPrefix(code, "404") {
-			return "Data tidak ditemukan."
+			return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 404."
 		}
 		if strings.HasPrefix(code, "405") {
-			return "Metode tidak diizinkan."
+			return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 405."
 		}
 		if strings.HasPrefix(code, "422") {
-			return "Data yang dikirim tidak valid."
+			return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 422."
 		}
 		if strings.HasPrefix(code, "429") {
-			return "Terlalu banyak permintaan. Silakan coba lagi nanti."
+			return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 429."
 		}
 		if strings.HasPrefix(code, "500") {
-			return "Terjadi kesalahan pada server. Silakan coba lagi nanti."
+			return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 500."
 		}
 		if strings.HasPrefix(code, "501") {
-			return "Fitur tidak didukung."
+			return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 501."
 		}
 		if strings.HasPrefix(code, "503") {
-			return "Layanan tidak tersedia. Silakan coba lagi nanti."
+			return "Terjadi kesalahan. Silakan hubungi Customer Service, Kode error: 503."
 		}
 		return "Terjadi kesalahan. Silakan coba lagi nanti."
 	}

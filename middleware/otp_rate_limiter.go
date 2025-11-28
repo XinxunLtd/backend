@@ -250,23 +250,37 @@ func (l *OTPRateLimiter) GetRetryAfterSeconds(phone string) int {
 	elapsed := now.Sub(record.FirstReqAt)
 	switch record.Count {
 	case 1:
-		return 0
+		// After first request, must wait 1 minute before second request
+		return int(time.Minute.Seconds()) // 60 seconds
 	case 2:
+		// After second request, check if 1 minute has passed since first request
 		if elapsed < time.Minute {
 			return int((time.Minute - elapsed).Seconds())
 		}
-		return 0
-	case 3:
+		// If 1 minute has passed, can request again (but will need to wait 5 minutes from first request for third)
 		if elapsed < 5*time.Minute {
 			return int((5*time.Minute - elapsed).Seconds())
 		}
 		return 0
-	case 4:
+	case 3:
+		// After third request, check if 5 minutes have passed since first request
+		if elapsed < 5*time.Minute {
+			return int((5*time.Minute - elapsed).Seconds())
+		}
+		// If 5 minutes have passed, can request again (but will need to wait 10 minutes from first request for fourth)
 		if elapsed < 10*time.Minute {
 			return int((10*time.Minute - elapsed).Seconds())
 		}
 		return 0
+	case 4:
+		// After fourth request, check if 10 minutes have passed since first request
+		if elapsed < 10*time.Minute {
+			return int((10*time.Minute - elapsed).Seconds())
+		}
+		// If 10 minutes have passed, can request again (but will need to wait 1 hour from first request for fifth)
+		return int(time.Hour.Seconds())
 	case 5:
+		// After fifth request, must wait 1 hour
 		return int(time.Hour.Seconds())
 	default:
 		if record.Locked && now.Before(record.LockedUntil) {
