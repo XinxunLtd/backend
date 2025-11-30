@@ -14,8 +14,9 @@ import (
 // UsersRoutes mendaftarkan semua route terkait user ke subrouter yang diberikan
 func UsersRoutes(api *mux.Router) {
 	// Active investments by product
-	// Rate limiter login/register: 10 per IP per menit
-	loginLimiter := middleware.NewIPRateLimiter(10, time.Minute)
+	// Rate limiter login/register: 50 per IP per 5 menit (lebih fleksibel, tetap aman)
+	// Window 5 menit memberikan fleksibilitas lebih untuk penggunaan normal
+	loginLimiter := middleware.NewIPRateLimiter(60, 5*time.Minute)
 	// Rate limiter session: 120 per user per menit (GET), 60 per user per menit (POST/PUT/DELETE)
 	userLimiter := middleware.NewUserRateLimiter(120, 60, 60) // 120 read, 60 write, window 60 detik
 
