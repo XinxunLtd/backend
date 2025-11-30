@@ -121,14 +121,15 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newUser := models.User{
-		Name:        req.Name,
-		Number:      req.Number,
-		Password:    string(hashed),
-		ReffCode:    code,
-		ReffBy:      reffBy,
-		Balance:     2000,
-		TotalInvest: 0,
-		Status:      "Active",
+		Name:            req.Name,
+		Number:          req.Number,
+		Password:        string(hashed),
+		ReffCode:        code,
+		ReffBy:          reffBy,
+		Balance:         2000,
+		TotalInvest:     0,
+		Status:          "Active",
+		StatusPublisher: "Inactive",
 	}
 
 	if err := db.Create(&newUser).Error; err != nil {

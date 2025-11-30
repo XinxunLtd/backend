@@ -60,7 +60,7 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 				"total_withdraw":   int64(TotalWithdraw),
 				"spin_ticket":      user.SpinTicket,
 				"active":           strings.ToLower(user.InvestmentStatus) == "active",
-				"publisher":        strings.ToLower(user.StatusPublisher) == "inactive",
+				"publisher":        strings.ToLower(user.StatusPublisher) == "active",
 				"profile":          user.Profile,
 			},
 			"application": map[string]interface{}{
