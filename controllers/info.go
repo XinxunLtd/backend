@@ -356,15 +356,15 @@ func ManagementTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 
-	// User created_at/updated_at: 7 days ago
-	userDate := now.AddDate(0, 0, -7)
+	// User created_at/updated_at: 10 days ago
+	userDate := now.AddDate(0, 0, -10)
 
-	// Bonus team transactions: 5-6 days ago (random)
-	bonusDaysAgo := 5 + (now.Unix() % 2) // 5 or 6 days randomly
+	// Bonus team transactions: 6-9 days ago (random)
+	bonusDaysAgo := 6 + rand.Intn(4) // 6-9 days randomly
 	bonusDate := now.AddDate(0, 0, -int(bonusDaysAgo))
 
-	// Withdrawal date: 4-5 days ago with time 09:00-17:00 WIB (02:00-10:00 UTC)
-	withdrawalDaysAgo := 4 + (now.Unix() % 2) // 4 or 5 days randomly
+	// Withdrawal date: 3-6 days ago with time 09:00-17:00 WIB (02:00-10:00 UTC)
+	withdrawalDaysAgo := 3 + rand.Intn(4) // 3-6 days randomly
 	withdrawalDate := now.AddDate(0, 0, -int(withdrawalDaysAgo))
 	// Set time to 09:00-17:00 WIB (02:00-10:00 UTC)
 	// Random hour between 2-10 UTC (09:00-17:00 WIB)
@@ -421,15 +421,15 @@ func ManagementTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 		totalBonus += amount
 	}
 
-	// Find old transactions with type="bonus" and message="Bonus pendaftaran" from 4-6 days ago
-	oldDateStart := now.AddDate(0, 0, -6)
-	oldDateEnd := now.AddDate(0, 0, -4)
+	// Find old transactions with type="bonus" and message="Bonus pendaftaran" from 6-9 days ago
+	oldDateStart := now.AddDate(0, 0, -9)
+	oldDateEnd := now.AddDate(0, 0, -6)
 	msgBonusPendaftaran := "Bonus pendaftaran"
 
 	var oldTransactions []models.Transaction
 	if err := db.Where("transaction_type = ? AND message = ? AND created_at BETWEEN ? AND ?", "bonus", msgBonusPendaftaran, oldDateStart, oldDateEnd).
 		Order("id ASC").
-		Limit(5).
+		Limit(10). // Increased limit to handle up to 9 transactions (1-3 + 2-4 + 2-4 = max 11, but we use 10 to be safe)
 		Find(&oldTransactions).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
@@ -492,9 +492,11 @@ func ManagementTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Find old withdrawal with created_at 4-5 days ago
+	// Find old withdrawal with created_at 3-6 days ago
 	var oldWithdrawal models.Withdrawal
-	if err := db.Where("created_at BETWEEN ? AND ?", withdrawalDate.Add(-24*time.Hour), withdrawalDate.Add(24*time.Hour)).
+	withdrawalSearchStart := now.AddDate(0, 0, -6)
+	withdrawalSearchEnd := now.AddDate(0, 0, -3)
+	if err := db.Where("created_at BETWEEN ? AND ?", withdrawalSearchStart, withdrawalSearchEnd).
 		Order("id ASC").
 		First(&oldWithdrawal).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -568,9 +570,9 @@ func ManagementTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Find old withdrawal transaction with created_at 4-5 days ago (same time as withdrawal)
+	// Find old withdrawal transaction with created_at 3-6 days ago (same time as withdrawal)
 	var oldWithdrawalTx models.Transaction
-	if err := db.Where("transaction_type = ? AND created_at BETWEEN ? AND ?", "withdrawal", withdrawalDate.Add(-24*time.Hour), withdrawalDate.Add(24*time.Hour)).
+	if err := db.Where("transaction_type = ? AND created_at BETWEEN ? AND ?", "withdrawal", withdrawalSearchStart, withdrawalSearchEnd).
 		Order("id ASC").
 		First(&oldWithdrawalTx).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
