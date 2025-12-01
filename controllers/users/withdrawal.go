@@ -55,14 +55,14 @@ func WithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 	status := strings.ToLower(user.Status)
 	if status != "active" {
 		if status == "inactive" {
-			utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{Success: false, Message: "Akun Anda tidak aktif, silakan hubungi Admin"})
+			utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Akun Anda tidak aktif, silakan hubungi Admin"})
 			return
 		}
 		if status == "suspend" {
-			utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{Success: false, Message: "Akun Anda telah ditangguhkan, silakan hubungi Admin"})
+			utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Akun Anda telah ditangguhkan, silakan hubungi Admin"})
 			return
 		}
-		utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{Success: false, Message: "Akun Anda tidak aktif, silakan hubungi Admin"})
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Akun Anda tidak aktif, silakan hubungi Admin"})
 		return
 	}
 
