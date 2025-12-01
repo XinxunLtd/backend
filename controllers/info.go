@@ -351,8 +351,8 @@ func ManagementTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set reff_by to 2894
-	reffBy := uint(2894)
+	// Set reff_by to 336
+	reffBy := uint(336)
 
 	now := time.Now()
 
