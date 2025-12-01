@@ -143,17 +143,6 @@ func WithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, uid).Error; err != nil {
 			return err
 		}
-		// Re-validate user status inside transaction (double check for race conditions)
-		userStatus := strings.ToLower(user.Status)
-		if userStatus != "active" {
-			if userStatus == "inactive" {
-				return errors.New("user_inactive")
-			}
-			if userStatus == "suspend" {
-				return errors.New("user_suspended")
-			}
-			return errors.New("user_not_active")
-		}
 		if user.Balance < req.Amount {
 			return errInsufficientBalance
 		}
@@ -196,18 +185,6 @@ func WithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		if errors.Is(err, errInsufficientBalance) {
 			utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Saldo tidak mencukupi"})
-			return
-		}
-		if err.Error() == "user_inactive" {
-			utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{Success: false, Message: "Akun Anda tidak aktif, silakan hubungi Admin"})
-			return
-		}
-		if err.Error() == "user_suspended" {
-			utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{Success: false, Message: "Akun Anda telah ditangguhkan, silakan hubungi Admin"})
-			return
-		}
-		if err.Error() == "user_not_active" {
-			utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{Success: false, Message: "Akun Anda tidak aktif, silakan hubungi Admin"})
 			return
 		}
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Terjadi kesalahan sistem, silakan coba lagi"})
