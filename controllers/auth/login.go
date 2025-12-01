@@ -49,6 +49,21 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check user status - only Active users can login
+	status := strings.ToLower(user.Status)
+	if status != "active" {
+		if status == "inactive" {
+			utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{Success: false, Message: "Akun Anda tidak aktif, silakan hubungi Admin"})
+			return
+		}
+		if status == "suspend" {
+			utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{Success: false, Message: "Akun Anda telah ditangguhkan, silakan hubungi Admin"})
+			return
+		}
+		utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{Success: false, Message: "Akun Anda tidak aktif, silakan hubungi Admin"})
+		return
+	}
+
 	// check account lockout
 	if locked, retry := middleware.IsAccountLocked(user.ID); locked {
 		utils.WriteJSON(w, http.StatusTooManyRequests, utils.APIResponse{Success: false, Message: "Terlalu banyak percobaan login. Coba lagi nanti.", Data: map[string]interface{}{"retry_after_seconds": int(retry.Seconds())}})

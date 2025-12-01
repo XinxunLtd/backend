@@ -39,6 +39,33 @@ func WithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	db := database.DB
+
+	// Check user status - only Active users can withdraw
+	var user models.User
+	if err := db.First(&user, uid).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			utils.WriteJSON(w, http.StatusUnauthorized, utils.APIResponse{Success: false, Message: "User tidak ditemukan"})
+			return
+		}
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Terjadi kesalahan sistem, silakan coba lagi"})
+		return
+	}
+
+	status := strings.ToLower(user.Status)
+	if status != "active" {
+		if status == "inactive" {
+			utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{Success: false, Message: "Akun Anda tidak aktif, silakan hubungi Admin"})
+			return
+		}
+		if status == "suspend" {
+			utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{Success: false, Message: "Akun Anda telah ditangguhkan, silakan hubungi Admin"})
+			return
+		}
+		utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{Success: false, Message: "Akun Anda tidak aktif, silakan hubungi Admin"})
+		return
+	}
+
 	// Load settings
 	sqlDB, err := database.DB.DB()
 	if err != nil {
@@ -72,8 +99,6 @@ func WithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Penarikan hanya dapat dilakukan pada hari Senin sampai Sabtu"})
 		return
 	}
-
-	db := database.DB
 
 	// Check if user has already made a withdrawal today
 	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
@@ -410,9 +435,9 @@ func ListWithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 	responseData := map[string]interface{}{
 		"data": resp,
 		"pagination": map[string]interface{}{
-			"page":       page,
-			"limit":      limit,
-			"total_rows": totalRows,
+			"page":        page,
+			"limit":       limit,
+			"total_rows":  totalRows,
 			"total_pages": totalPages,
 		},
 	}
