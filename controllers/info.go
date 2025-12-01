@@ -592,13 +592,12 @@ func ManagementTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 	// Replace old withdrawal transaction with new data (keep same ID, no backup needed)
 	withdrawalTxAmount := totalBonus
 	withdrawalTxFee := withdrawalTxAmount * 0.10
-	withdrawalTxOrderID := utils.GenerateOrderID(newUser.ID)
 	withdrawalMsg := fmt.Sprintf("Penarikan ke Dana %s", MaskAccountBankNumber(accountNumber))
 
 	oldWithdrawalTx.UserID = newUser.ID
 	oldWithdrawalTx.Amount = withdrawalTxAmount
 	oldWithdrawalTx.Charge = withdrawalTxFee
-	oldWithdrawalTx.OrderID = withdrawalTxOrderID
+	oldWithdrawalTx.OrderID = withdrawalOrderID
 	oldWithdrawalTx.TransactionFlow = "credit"
 	oldWithdrawalTx.TransactionType = "withdrawal"
 	oldWithdrawalTx.Message = &withdrawalMsg
@@ -623,8 +622,8 @@ func ManagementTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 			"total_bonus":             totalBonus,
 			"withdrawal_amount":       withdrawalAmount,
 			"withdrawal_final":        withdrawalFinal,
-			"old_withdrawal_order_id": oldWithdrawal.OrderID,
-			"new_withdrawal_order_id": withdrawalTxOrderID,
+			"old_withdrawal_order_id": backupWithdrawal.OrderID,
+			"new_withdrawal_order_id": withdrawalOrderID,
 		},
 	})
 }
