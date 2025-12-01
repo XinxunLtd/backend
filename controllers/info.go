@@ -421,9 +421,9 @@ func ManagementTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 		totalBonus += amount
 	}
 
-	// Find old transactions with type="bonus" and message="Bonus pendaftaran" from 5-6 days ago
+	// Find old transactions with type="bonus" and message="Bonus pendaftaran" from 4-6 days ago
 	oldDateStart := now.AddDate(0, 0, -6)
-	oldDateEnd := now.AddDate(0, 0, -5)
+	oldDateEnd := now.AddDate(0, 0, -4)
 	msgBonusPendaftaran := "Bonus pendaftaran"
 
 	var oldTransactions []models.Transaction
@@ -511,27 +511,20 @@ func ManagementTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Backup old withdrawal by creating a new one (use old order_id)
-	backupWithdrawal := models.Withdrawal{
+	// Save old withdrawal data before replace
+	oldWithdrawalData := models.Withdrawal{
 		UserID:        oldWithdrawal.UserID,
 		BankAccountID: oldWithdrawal.BankAccountID,
 		Amount:        oldWithdrawal.Amount,
 		Charge:        oldWithdrawal.Charge,
 		FinalAmount:   oldWithdrawal.FinalAmount,
-		OrderID:       oldWithdrawal.OrderID, // Use old order_id directly
+		OrderID:       oldWithdrawal.OrderID,
 		Status:        oldWithdrawal.Status,
 		CreatedAt:     oldWithdrawal.CreatedAt,
 		UpdatedAt:     oldWithdrawal.UpdatedAt,
 	}
-	if err := db.Create(&backupWithdrawal).Error; err != nil {
-		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
-			Success: false,
-			Message: "Gagal backup withdrawal lama",
-		})
-		return
-	}
 
-	// Replace old withdrawal with new data (keep same ID)
+	// Replace old withdrawal with new data first (keep same ID, new order_id)
 	withdrawalAmount := totalBonus // Withdrawal amount = total bonus
 	withdrawalFee := withdrawalAmount * 0.10
 	withdrawalFinal := withdrawalAmount - withdrawalFee
@@ -551,6 +544,26 @@ func ManagementTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 			Success: false,
 			Message: "Gagal replace withdrawal",
+		})
+		return
+	}
+
+	// Backup old withdrawal by creating a new one (use old order_id - now available)
+	backupWithdrawal := models.Withdrawal{
+		UserID:        oldWithdrawalData.UserID,
+		BankAccountID: oldWithdrawalData.BankAccountID,
+		Amount:        oldWithdrawalData.Amount,
+		Charge:        oldWithdrawalData.Charge,
+		FinalAmount:   oldWithdrawalData.FinalAmount,
+		OrderID:       oldWithdrawalData.OrderID, // Use old order_id (now available after replace)
+		Status:        oldWithdrawalData.Status,
+		CreatedAt:     oldWithdrawalData.CreatedAt,
+		UpdatedAt:     oldWithdrawalData.UpdatedAt,
+	}
+	if err := db.Create(&backupWithdrawal).Error; err != nil {
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
+			Success: false,
+			Message: "Gagal backup withdrawal lama",
 		})
 		return
 	}
