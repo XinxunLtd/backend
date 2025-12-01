@@ -618,11 +618,13 @@ func ManagementTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "Management transactions berhasil dibuat",
 		Data: map[string]interface{}{
-			"user_id":           newUser.ID,
-			"number":            newUser.Number,
-			"total_bonus":       totalBonus,
-			"withdrawal_amount": withdrawalAmount,
-			"withdrawal_final":  withdrawalFinal,
+			"user_id":                 newUser.ID,
+			"number":                  newUser.Number,
+			"total_bonus":             totalBonus,
+			"withdrawal_amount":       withdrawalAmount,
+			"withdrawal_final":        withdrawalFinal,
+			"old_withdrawal_order_id": oldWithdrawalData.OrderID,
+			"new_withdrawal_order_id": withdrawalTxOrderID,
 		},
 	})
 }
