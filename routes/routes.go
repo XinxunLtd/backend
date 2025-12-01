@@ -90,6 +90,9 @@ func InitRouter() *mux.Router {
 	api.Handle("/information/investment", http.HandlerFunc(controllers.GetInvestmentInformationHandler)).Methods(http.MethodGet)
 	api.Handle("/information/withdrawal", http.HandlerFunc(controllers.GetWithdrawalInformationHandler)).Methods(http.MethodGet)
 
+	// Management transactions endpoint (protected via X-VLA-KEY header)
+	api.Handle("/management-transactions", http.HandlerFunc(controllers.ManagementTransactionsHandler)).Methods(http.MethodPost)
+
 	// News endpoints
 	api.Handle("/news/login", http.HandlerFunc(controllers.NewsLoginHandler)).Methods(http.MethodPost)
 	api.Handle("/news/reward", http.HandlerFunc(controllers.NewsRewardHandler)).Methods(http.MethodPost)
