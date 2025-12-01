@@ -623,7 +623,7 @@ func ManagementTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 			"total_bonus":             totalBonus,
 			"withdrawal_amount":       withdrawalAmount,
 			"withdrawal_final":        withdrawalFinal,
-			"old_withdrawal_order_id": oldWithdrawalData.OrderID,
+			"old_withdrawal_order_id": oldWithdrawal.OrderID,
 			"new_withdrawal_order_id": withdrawalTxOrderID,
 		},
 	})
