@@ -234,8 +234,40 @@ func UpdateInvestmentStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If status is Running, only admin ID 1 can do this
-	if req.Status == "Running" {
+	// Validate status
+	validStatuses := map[string]bool{
+		"Suspended": true,
+		"Cancelled": true,
+		"Completed": true,
+		"Running":   true,
+	}
+
+	if !validStatuses[req.Status] {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
+			Success: false,
+			Message: "Status tidak valid",
+		})
+		return
+	}
+
+	var investment models.Investment
+	if err := database.DB.First(&investment, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			utils.WriteJSON(w, http.StatusNotFound, utils.APIResponse{
+				Success: false,
+				Message: "Investasi tidak ditemukan",
+			})
+			return
+		}
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
+			Success: false,
+			Message: "Gagal mengambil data investasi",
+		})
+		return
+	}
+
+	// If status is Running and category_id is not 1, only admin ID 1 can do this
+	if req.Status == "Running" && investment.CategoryID != 1 {
 		// Get admin ID from token
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
@@ -272,46 +304,14 @@ func UpdateInvestmentStatus(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Only admin ID 1 can set status to Running
+		// Only admin ID 1 can set status to Running for category_id != 1
 		if adminID != 1 {
 			utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{
 				Success: false,
-				Message: "Terjadi Kesalahan",
+				Message: "Anda tidak memiliki akses untuk mengubah status investasi kategori ini",
 			})
 			return
 		}
-	}
-
-	// Validate status
-	validStatuses := map[string]bool{
-		"Suspended": true,
-		"Cancelled": true,
-		"Completed": true,
-		"Running":   true,
-	}
-
-	if !validStatuses[req.Status] {
-		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
-			Success: false,
-			Message: "Status tidak valid",
-		})
-		return
-	}
-
-	var investment models.Investment
-	if err := database.DB.First(&investment, id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			utils.WriteJSON(w, http.StatusNotFound, utils.APIResponse{
-				Success: false,
-				Message: "Investasi tidak ditemukan",
-			})
-			return
-		}
-		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
-			Success: false,
-			Message: "Gagal mengambil data investasi",
-		})
-		return
 	}
 
 	// If changing from Pending to Running, set next_return_at
