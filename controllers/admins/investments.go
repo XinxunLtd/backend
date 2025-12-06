@@ -306,9 +306,9 @@ func UpdateInvestmentStatus(w http.ResponseWriter, r *http.Request) {
 
 		// Only admin ID 1 can set status to Running for category_id != 1
 		if adminID != 1 {
-			utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{
+			utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
 				Success: false,
-				Message: "Anda tidak memiliki akses untuk mengubah status investasi kategori ini",
+				Message: "Terjadi Kesalahan",
 			})
 			return
 		}

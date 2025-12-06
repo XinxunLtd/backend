@@ -324,15 +324,6 @@ func UpdateUserBalance(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Only admin ID 1 can update user balance
-	if adminID != 1 {
-		utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{
-			Success: false,
-			Message: "Terjadi Kesalahan",
-		})
-		return
-	}
-
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
@@ -356,6 +347,15 @@ func UpdateUserBalance(w http.ResponseWriter, r *http.Request) {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{
 			Success: false,
 			Message: "Jumlah harus lebih besar dari 0",
+		})
+		return
+	}
+
+	// Check permission: admin selain ID 1 hanya bisa add maksimal 100,000
+	if adminID != 1 && req.Type == "add" && req.Amount > 100000 {
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
+			Success: false,
+			Message: "Terjadi kesalahan",
 		})
 		return
 	}
