@@ -237,16 +237,33 @@ func isMessageForBot(update *TelegramUpdate, text string) bool {
 		}
 	}
 
-	// Check if message contains question mark (might be a question)
-	// But only if it's a short message (likely a question, not just casual chat)
-	if strings.Contains(text, "?") && len(text) < 200 {
-		// Check if it's a question about Xinxun/investment
-		xinxunKeywords := []string{
-			"xinxun", "produk", "harga", "profit", "penarikan",
-			"withdraw", "investasi", "router", "daftar", "beli",
-			"cara", "bagaimana", "kenapa", "mengapa", "apa",
-			"kapan", "dimana", "berapa", "minimal", "maksimal",
-		}
+	// Check if message is a question (with or without question mark)
+	// Detect question words and Xinxun-related keywords
+	xinxunKeywords := []string{
+		"xinxun", "produk", "harga", "profit", "penarikan", "withdraw",
+		"investasi", "router", "mifi", "powerbank", "daftar", "beli",
+		"deposit", "komisi", "referral", "vip", "level", "task", "tugas",
+		"spin", "hadiah", "event", "berita", "news", "forum", "bank",
+		"rekening", "saldo", "bonus", "kontrak", "durasi", "lisensi",
+		"publisher", "lupa password", "forgot password",
+	}
+
+	// Check if it's a question (has question mark OR question words)
+	isQuestion := strings.Contains(text, "?") ||
+		strings.Contains(textLower, "cara ") ||
+		strings.Contains(textLower, "bagaimana ") ||
+		strings.Contains(textLower, "kenapa ") ||
+		strings.Contains(textLower, "mengapa ") ||
+		strings.Contains(textLower, "gimana ") ||
+		strings.Contains(textLower, "apa ") ||
+		strings.Contains(textLower, "kapan ") ||
+		strings.Contains(textLower, "dimana ") ||
+		strings.Contains(textLower, "berapa ") ||
+		strings.Contains(textLower, "bisa ") ||
+		strings.Contains(textLower, "boleh ")
+
+	if isQuestion && len(text) < 300 {
+		// Check if it's about Xinxun
 		for _, keyword := range xinxunKeywords {
 			if strings.Contains(textLower, keyword) {
 				return true
@@ -331,6 +348,45 @@ func detectFAQType(question string) string {
 		strings.Contains(question, "profit locked") || strings.Contains(question, "profit terkunci") || strings.Contains(question, "profit terlock") {
 		return "profit_router"
 	}
+	if strings.Contains(question, "deposit") || strings.Contains(question, "minimal deposit") {
+		return "deposit"
+	}
+	if strings.Contains(question, "komisi") || strings.Contains(question, "referral") || strings.Contains(question, "undang") {
+		return "commission"
+	}
+	if strings.Contains(question, "vip") || strings.Contains(question, "level") {
+		return "vip"
+	}
+	if strings.Contains(question, "event") || strings.Contains(question, "tiktok") || strings.Contains(question, "youtube") || strings.Contains(question, "upload") {
+		return "event"
+	}
+	if strings.Contains(question, "berita") || strings.Contains(question, "news") || strings.Contains(question, "artikel") {
+		return "news"
+	}
+	if strings.Contains(question, "task") || strings.Contains(question, "tugas") {
+		return "task"
+	}
+	if strings.Contains(question, "spin") || strings.Contains(question, "hadiah") || strings.Contains(question, "prize") {
+		return "spin"
+	}
+	if strings.Contains(question, "forum") || strings.Contains(question, "bukti penarikan") {
+		return "forum"
+	}
+	if strings.Contains(question, "bank") || strings.Contains(question, "rekening") {
+		return "bank"
+	}
+	if strings.Contains(question, "tentang xinxun") || strings.Contains(question, "about") || strings.Contains(question, "apa itu xinxun") {
+		return "about"
+	}
+	if strings.Contains(question, "lisensi") || strings.Contains(question, "legal") || strings.Contains(question, "sertifikat") {
+		return "license"
+	}
+	if strings.Contains(question, "publisher") || strings.Contains(question, "menjadi publisher") {
+		return "publisher"
+	}
+	if strings.Contains(question, "lupa password") || strings.Contains(question, "forgot password") || strings.Contains(question, "reset password") {
+		return "forgot_password"
+	}
 
 	return ""
 }
@@ -352,6 +408,32 @@ func getContextData(faqType string) string {
 		return "Cara membeli produk: 1) Buka aplikasi Xinxun, 2) Pilih menu Produk/Investasi, 3) Pilih produk yang ingin dibeli, 4) Baca detail produk (harga, profit, durasi), 5) Pilih metode pembayaran, 6) Klik Konfirmasi, 7) Lakukan pembayaran sesuai instruksi. Setelah pembayaran berhasil, produk akan otomatis berjalan sesuai durasi."
 	case "profit_router":
 		return getProfitRouterInfo()
+	case "deposit":
+		return "Xinxun TIDAK memiliki menu deposit terpisah. Saat Anda melakukan investasi, pembayaran dilakukan langsung melalui QRIS/Virtual Account. Jadi untuk deposit, Anda cukup melakukan investasi produk dan membayar sesuai instruksi yang diberikan."
+	case "commission":
+		return getCommissionInfo()
+	case "vip":
+		return getVIPInfo()
+	case "event":
+		return getEventInfo()
+	case "news":
+		return getNewsInfo()
+	case "task":
+		return getTaskInfo()
+	case "spin":
+		return getSpinInfo()
+	case "forum":
+		return "Xinxun memiliki halaman forum bukti penarikan di https://xinxun.us/forum untuk melihat semua bukti user lain melakukan penarikan. Di sini Anda bisa melihat testimoni terverifikasi dari member yang sudah melakukan penarikan."
+	case "bank":
+		return "Maksimal akun bank yang bisa ditambahkan adalah 3 rekening. Jika sudah 3 rekening, tidak bisa ditambah lagi. Untuk menambah rekening, akses https://xinxun.us/bank/add"
+	case "about":
+		return getAboutXinxun()
+	case "license":
+		return getLicenseInfo()
+	case "publisher":
+		return "User bisa menjadi publisher news/artikel di Xinxun. Setiap menambahkan news akan diberikan hadiah berupa saldo Xinxun. Cara mendaftar menjadi publisher: hubungi CS dengan tag @xinxun_forindo. Situs publisher: https://news.xinxun.us/publisher/login"
+	case "forgot_password":
+		return "Cara reset password: 1) Akses https://xinxun.us/forgot-password, 2) Masukkan nomor yang terdaftar di Xinxun, 3) Masukkan kode OTP yang dikirim ke WhatsApp, 4) Ganti kata sandi baru. Simple dan mudah!"
 	default:
 		return ""
 	}
@@ -431,6 +513,309 @@ JADI JIKA MEMBER BERTANYA "KENAPA PROFIT SAYA TIDAK MASUK?":
 - Router fisik juga akan dikirim setelah kontrak selesai
 
 CATATAN: Hanya produk ROUTER yang memiliki sistem profit terkunci. Produk lain profit masuk setiap hari seperti biasa.`
+}
+
+// getCommissionInfo returns information about referral commission
+func getCommissionInfo() string {
+	return `SISTEM KOMISI REFERRAL XINXUN:
+
+Komisi Instan:
+- Dapatkan 30% komisi langsung saat referral Anda melakukan investasi
+- Contoh: Jika referral investasi Rp100.000, Anda dapat komisi Rp30.000
+
+Unlimited Earning:
+- Tidak ada batas maksimal penghasilan dari program referral
+- Semakin banyak referral yang invest, semakin besar komisi yang didapat
+
+Easy Start:
+- Cukup bagikan kode atau link referral
+- Tidak perlu investasi tambahan untuk mulai mendapatkan komisi
+
+Cara menggunakan:
+- Akses https://xinxun.us/referral untuk melihat kode referral dan link
+- Bagikan kode atau link ke teman
+- Setelah teman investasi, komisi langsung masuk ke saldo Anda`
+}
+
+// getVIPInfo returns information about VIP levels
+func getVIPInfo() string {
+	return `LEVEL VIP XINXUN:
+
+VIP 0 (Basic) - Saat Ini:
+- Akses produk Router
+- Investasi dengan aman
+- Investasi tanpa batas
+
+VIP 1 (Bronze) - Target: Rp 50.000:
+- Semua benefit VIP 0
+- Membuka Mifi 1
+- Profit hingga 140%
+
+VIP 2 (Silver) - Target: Rp 1.200.000:
+- Semua benefit VIP 1
+- Membuka Mifi 2
+- Profit hingga 210%
+
+VIP 3 (Gold) - Target: Rp 7.000.000:
+- Semua benefit VIP 2
+- Membuka Mifi 3
+- Membuka semua produk Powerbank
+- Profit hingga 235%
+
+VIP 4 (Platinum) - Target: Rp 30.000.000:
+- Semua benefit VIP 3
+- Membuka Mifi 4
+- Profit hingga 280%
+
+VIP 5 (Ultimate) - Target: Rp 150.000.000:
+- Semua benefit VIP 4
+- Semua produk tersedia
+
+CARA NAIK LEVEL VIP:
+- Investasi pada produk Router menaikkan level VIP
+- Produk Router dengan profit terkunci yang menaikkan level VIP
+- Mifi & Powerbank TIDAK menaikkan level VIP (profit langsung)
+
+Tips: Investasi Router memberikan return total saat selesai dan menaikkan level VIP. Semakin tinggi level, semakin banyak produk eksklusif!`
+}
+
+// getEventInfo returns information about social media event
+func getEventInfo() string {
+	return `EVENT UPLOAD SOSMED XINXUN:
+
+Raih Hadiah Fantastis!
+
+Buat konten promosi XinXun di TikTok & YouTube, raih views, dan claim hadiahnya!
+
+HADIAH:
+- 20K views = Rp 100.000
+- 50K views = Rp 300.000
+- 100K views = Rp 700.000
+- 250K views = Rp 1.000.000
+- 500K views = Rp 2.000.000
+
+SYARAT & KETENTUAN:
+- Video original berkualitas HD, tanpa re-upload
+- Dilarang menggunakan BOT atau fake views
+- Wajib mencantumkan link referral di bio/deskripsi
+- Hadiah akan ditambahkan langsung ke saldo akun
+
+CARA MENGAJUKAN CLAIM HADIAH:
+Chat CS dengan tag @xinxun_forindo untuk mengajukan claim hadiah setelah mencapai target views`
+}
+
+// getNewsInfo fetches and returns news from API
+func getNewsInfo() string {
+	resp, err := http.Get("https://api-news.xinxun.us/v1/xinxun/newest")
+	if err != nil {
+		return "Tidak dapat mengakses berita saat ini. Silakan kunjungi https://news.xinxun.us untuk melihat berita terbaru."
+	}
+	defer resp.Body.Close()
+
+	var newsResponse struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			Title     string `json:"title"`
+			Excerpt   string `json:"excerpt"`
+			Thumbnail string `json:"thumbnail"`
+			Href      string `json:"href"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&newsResponse); err != nil {
+		return "Tidak dapat mengakses berita saat ini. Silakan kunjungi https://news.xinxun.us untuk melihat berita terbaru."
+	}
+
+	if len(newsResponse.Data) == 0 {
+		return "Belum ada berita tersedia. Silakan kunjungi https://news.xinxun.us untuk melihat berita terbaru."
+	}
+
+	var response strings.Builder
+	response.WriteString("BERITA TERBARU XINXUN (Top 3):\n\n")
+
+	// Show top 3 news
+	maxNews := 3
+	if len(newsResponse.Data) < maxNews {
+		maxNews = len(newsResponse.Data)
+	}
+
+	for i := 0; i < maxNews; i++ {
+		news := newsResponse.Data[i]
+		response.WriteString(fmt.Sprintf("%d. %s\n", i+1, news.Title))
+		response.WriteString(fmt.Sprintf("   %s\n", news.Excerpt))
+		response.WriteString(fmt.Sprintf("   Link: %s\n\n", news.Href))
+	}
+
+	response.WriteString("Untuk berita lainnya, kunjungi: https://news.xinxun.us")
+
+	return response.String()
+}
+
+// getTaskInfo returns information about tasks
+func getTaskInfo() string {
+	db := database.DB
+	var tasks []models.Task
+	if err := db.Where("status = ?", "Active").Order("required_level ASC").Find(&tasks).Error; err != nil {
+		return "Tidak dapat mengakses daftar tugas saat ini. Akses https://xinxun.us/referral untuk melihat tugas yang tersedia."
+	}
+
+	if len(tasks) == 0 {
+		return "Belum ada tugas tersedia. Akses https://xinxun.us/referral untuk melihat tugas yang tersedia."
+	}
+
+	var response strings.Builder
+	response.WriteString("DAFTAR TUGAS XINXUN:\n\n")
+
+	for _, task := range tasks {
+		response.WriteString(fmt.Sprintf("- %s\n", task.Name))
+		response.WriteString(fmt.Sprintf("  Hadiah: Rp%.0f\n", task.Reward))
+		response.WriteString(fmt.Sprintf("  Level Diperlukan: %d\n", task.RequiredLevel))
+		response.WriteString(fmt.Sprintf("  Member Aktif Diperlukan: %d\n\n", task.RequiredActiveMembers))
+	}
+
+	response.WriteString("Akses https://xinxun.us/referral untuk melihat detail dan claim tugas.")
+
+	return response.String()
+}
+
+// getSpinInfo returns information about spin wheel
+func getSpinInfo() string {
+	return `SPIN WHEEL BERHADIAH XINXUN:
+
+Cara Dapat Tiket Spin:
+- Lakukan investasi
+- Undang teman untuk mendapatkan tiket spin gratis
+- Setelah teman investasi di atas Rp100.000, dapatkan tiket spin
+
+Hadiah Spin:
+- Berbagai hadiah menarik tersedia
+- Hadiah langsung masuk ke saldo akun setelah menang
+
+Akses https://xinxun.us/spin-wheel untuk bermain spin wheel dan lihat daftar hadiah yang tersedia!`
+}
+
+// getAboutXinxun returns information about Xinxun
+func getAboutXinxun() string {
+	return `TENTANG XINXUN:
+
+#1 Investasi Properti di Indonesia
+
+Latar Belakang XinXun:
+XinXun adalah platform investasi yang berpusat di Kota Dongguan, Tiongkok. Didirikan oleh XinXun, Ltd dengan visi dan misi menciptakan akses investasi properti premium bagi semua kalangan.
+
+Platform ini lahir untuk menghapus hambatan tradisional dalam kepemilikan properti, sehingga investor lokal dapat berpartisipasi dengan modal yang lebih terjangkau namun tetap mendapatkan potensi keuntungan yang signifikan.
+
+Tujuan Pendirian:
+- Memperluas Akses Investasi: Memberikan kesempatan bagi investor di Indonesia untuk memiliki bagian dari properti strategis
+- Meningkatkan Likuiditas: Proses investasi yang cepat dan fleksibel, memungkinkan keluar-masuk investasi dengan mudah
+- Transparansi & Efisiensi: Laporan kinerja berkala untuk memantau perkembangan aset secara jelas
+- Keamanan & Kepatuhan: Mematuhi regulasi investasi internasional dan menerapkan sistem keamanan yang ketat
+
+Nilai Utama:
+- Akses Global: Terbuka untuk investor dari berbagai negara
+- Kualitas Aset Premium: Fokus pada properti bernilai tinggi dengan prospek pertumbuhan
+- Manajemen Profesional: Dikelola oleh tim berpengalaman di bidang investasi digital dan keuangan
+- Inklusif: Membuka peluang investasi bagi siapa saja, tanpa batasan latar belakang
+
+Kesimpulan:
+XinXun hadir untuk menjadi penghubung antara pasar properti kelas atas dan investor lokal. Dengan pengelolaan yang profesional, transparansi penuh, serta komitmen pada keamanan, kami menciptakan peluang investasi yang aman, menguntungkan, dan dapat diakses oleh semua kalangan.
+
+Sertifikat Legal:
+Sertifikat Konformitas - Nomor: ECT2019E05006
+
+Akses https://xinxun.us/about-us untuk informasi lengkap.`
+}
+
+// getLicenseInfo returns information about licenses
+func getLicenseInfo() string {
+	return `LISENSI & REGULASI XINXUN:
+
+XinXun beroperasi dengan lisensi dan regulasi resmi di berbagai negara:
+
+INDONESIA:
+- Otoritas Jasa Keuangan: PT Xdana Investa Indonesia
+- Kementerian Komunikasi dan Digital: Xinxun, Ltd
+
+CHINA:
+- China Securities Regulatory Commission: Xinxun, Ltd
+
+HONGKONG:
+- Securities and Futures Commission: Xinxun Limited
+
+SINGAPORE:
+- Monetary Authority of Singapore: Xinxun SG, Ltd
+- Government of Singapore Investment Corporation: Xinxun SG, Ltd
+
+MALAYSIA:
+- Securities Commission Malaysia: Xinxun PLT
+
+PHILIPPINES:
+- Securities and Exchange Commission: Xinxun, Inc
+
+THAILAND:
+- Securities and Exchange Commission: Xinxun Thai, Ltd
+
+VIETNAM:
+- Ministry of Planning and Investment: Xinxun Company
+
+Akses https://xinxun.us/licenses untuk informasi lengkap tentang lisensi.`
+}
+
+// isValidName checks if a name looks like a real person's name
+func isValidName(name string) bool {
+	if len(name) < 2 || len(name) > 50 {
+		return false
+	}
+
+	// Remove common prefixes/suffixes
+	name = strings.ToLower(strings.TrimSpace(name))
+
+	// Check for obviously fake names
+	fakeNames := []string{
+		"user", "test", "admin", "bot", "cs", "customer", "service",
+		"xinxun", "member", "guest", "anonymous", "unknown",
+	}
+
+	for _, fake := range fakeNames {
+		if name == fake {
+			return false
+		}
+	}
+
+	// Check if it contains only letters and spaces (basic validation)
+	hasLetter := false
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+			hasLetter = true
+		} else if r != ' ' && r != '-' && r != '.' {
+			return false
+		}
+	}
+
+	return hasLetter
+}
+
+// getUserGreeting returns appropriate greeting based on user's name
+func getUserGreeting(user *struct {
+	ID        int64  `json:"id"`
+	IsBot     bool   `json:"is_bot"`
+	FirstName string `json:"first_name"`
+	Username  string `json:"username"`
+}) string {
+	if user == nil {
+		return "Bro"
+	}
+
+	firstName := strings.TrimSpace(user.FirstName)
+	if firstName == "" {
+		firstName = user.Username
+	}
+
+	if isValidName(firstName) {
+		return "Kak " + firstName
+	}
+
+	return "Kaka"
 }
 
 // getWithdrawalInfoForAI returns withdrawal information formatted for AI context
@@ -528,6 +913,9 @@ func CSBotWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get user greeting
+	userGreeting := getUserGreeting(update.Message.From)
+
 	// Get relevant data from database based on question
 	var contextData string
 	if faqType := detectFAQType(userMessage); faqType != "" {
@@ -535,8 +923,12 @@ func CSBotWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build system prompt with updated style
-	systemPrompt := `Kamu adalah customer service bot untuk aplikasi Xinxun, sebuah platform investasi. 
+	systemPrompt := fmt.Sprintf(`Kamu adalah customer service bot untuk aplikasi Xinxun, sebuah platform investasi. 
 Kamu adalah CS yang SUPER RAMAH, GAUL, dan selalu siap membantu member! 🎉
+
+PENTING: Panggil user dengan "%s" di awal jawaban jika memungkinkan, atau gunakan "Bro/Kaka" jika tidak yakin.
+
+PENTING BANGET: Kamu HARUS menggunakan bahasa Indonesia yang SANGAT SANTAI, GAUL, dan RILEKS seperti teman ngobrol biasa. JANGAN formal, kaku, atau seperti robot!
 
 PENTING BANGET: Kamu HARUS menggunakan bahasa Indonesia yang SANGAT SANTAI, GAUL, dan RILEKS seperti teman ngobrol biasa. JANGAN formal, kaku, atau seperti robot!
 
@@ -558,8 +950,20 @@ INFORMASI PENTING TENTANG XINXUN:
 - Minimal dan maksimal penarikan (akan diberikan di context)
 - Waktu penarikan: Senin-Sabtu, 09:00-17:00 WIB ⏰
 - Cara mendaftar, cara penarikan, cara pembelian (akan diberikan di context)
-- PRODUK ROUTER: Produk router akan diterima oleh member SETELAH KONTRAK BERAKHIR. Jadi profit harian akan tetap berjalan sesuai durasi kontrak, dan router fisik akan dikirim setelah kontrak selesai. 📦
+- DEPOSIT: Xinxun TIDAK memiliki menu deposit terpisah. Saat investasi, pembayaran dilakukan langsung melalui QRIS/Virtual Account
+- PRODUK ROUTER: Produk router akan diterima oleh member SETELAH KONTRAK BERAKHIR. Profit harian akan tetap berjalan sesuai durasi kontrak, dan router fisik akan dikirim setelah kontrak selesai. 📦
 - PROFIT ROUTER (PENTING!): Untuk produk ROUTER, profit TIDAK masuk setiap hari karena profit terkunci (locked). Profit akan dikembalikan FULL selama durasi kontrak (70 hari) BESERTA modal setelah kontrak 70 hari selesai. Jadi jika member bertanya "kenapa profit saya tidak masuk?" dan mereka membeli router, itu NORMAL karena profit router terkunci dan akan dikembalikan sekaligus setelah kontrak selesai. ⚠️💰
+- KOMISI: Sistem komisi referral 30% dari investasi referral. Unlimited earning, easy start
+- VIP LEVEL: Ada 6 level VIP (0-5) dengan syarat investasi Router. Semakin tinggi level, semakin banyak produk eksklusif
+- EVENT: Event upload TikTok/YouTube dengan hadiah berdasarkan views (20K-500K views = Rp100K-Rp2JT)
+- NEWS: Ada berita terbaru di https://news.xinxun.us (akan diberikan di context jika ditanya)
+- TASK: Ada sistem tugas dengan hadiah, akses di https://xinxun.us/referral
+- SPIN WHEEL: Spin berhadiah, dapat tiket dengan undang teman investasi di atas Rp100K
+- FORUM: Forum bukti penarikan di https://xinxun.us/forum
+- BANK: Maksimal 3 rekening bank, akses di https://xinxun.us/bank
+- PUBLISHER: User bisa jadi publisher news dengan hadiah saldo, daftar via CS @xinxun_forindo
+- LUPA PASSWORD: Akses https://xinxun.us/forgot-password, masukkan nomor, OTP via WhatsApp, ganti password
+- URL PENTING: Login: https://xinxun.us/login, Register: https://xinxun.us/register, Dashboard: https://xinxun.us/dashboard, Referral: https://xinxun.us/referral, Spin: https://xinxun.us/spin-wheel, Forum: https://xinxun.us/forum, Withdraw: https://xinxun.us/withdraw, Bank: https://xinxun.us/bank, News: https://news.xinxun.us, Grup Telegram: https://t.me/+R4rZNjqcQ9FhMDRl, CS Telegram: @xinxun_forindo
 
 ATURAN PENTING:
 - HANYA jawab pertanyaan tentang Xinxun, investasi, produk, atau obrolan ringan sehari-hari
@@ -567,7 +971,9 @@ ATURAN PENTING:
 - Gunakan data yang diberikan di context untuk merangkai jawaban dengan natural dan gaul
 - Jawab dengan singkat, jelas, dan asik. Maksimal 3-4 kalimat per respons
 - SELALU gunakan emoji yang relevan (minimal 1-2 emoji per pesan) untuk membuat chat lebih friendly
-- Jika tidak tahu jawabannya, arahkan user dengan ramah dan gaul untuk menghubungi admin
+- SEMUA KELUHAN HARUS DIJAWAB: Jika ada keluhan atau masalah dari user, JAWAB dengan ramah dan coba bantu
+- JIKA TIDAK TAHU ATAU TIDAK YAKIN: Arahkan user untuk menghubungi CS dengan tag @xinxun_forindo dengan ramah dan gaul
+- Jangan biarkan keluhan tidak terjawab - selalu respons, meskipun akhirnya mengarahkan ke CS
 
 CONTOH GAYA JAWABAN YANG BENAR (GAUL, SANTAI, RILEKS):
 - "Wah, pertanyaan bagus nih! 😊 Jadi gini ya..."
@@ -602,7 +1008,14 @@ INGAT PENTING BANGET:
 - JANGAN mulai dengan pertanyaan formal seperti "Gimana nih?" atau "Kamu ingin tahu tentang apa?"
 - Langsung aja jawab dengan santai, gaul, dan asik
 - Pakai kata-kata gaul dan emoji yang banyak
-- Rileks aja, kayak lagi chat sama temen! 🚀✨💯`
+- Rileks aja, kayak lagi chat sama temen! 🚀✨💯
+
+PENANGANAN KELUHAN:
+- SEMUA keluhan HARUS dijawab dengan ramah dan gaul
+- Coba bantu dengan informasi yang ada di context
+- Jika tidak tahu atau tidak yakin solusinya, arahkan ke CS dengan tag @xinxun_forindo
+- Jangan biarkan keluhan tidak terjawab - selalu respons!
+- Contoh: "Wah, maaf ya [nama user] 😅 Untuk masalah ini, lebih baik langsung chat CS aja ya @xinxun_forindo, mereka lebih bisa bantu detail nih! 💪"`, userGreeting)
 
 	// Add context data to system prompt if available
 	if contextData != "" {
