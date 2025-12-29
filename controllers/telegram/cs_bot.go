@@ -163,10 +163,24 @@ func ShouldRespond(update *TelegramUpdate) bool {
 		return false
 	}
 
-	// Respond in both groups and private chats
+	text := strings.TrimSpace(update.Message.Text)
+	if text == "" {
+		return false
+	}
+
+	// Ignore commands (messages starting with /)
+	if strings.HasPrefix(text, "/") {
+		return false
+	}
+
 	chatType := update.Message.Chat.Type
 
-	// If it's a group or supergroup, check if it's allowed
+	// For private chats, always respond (it's definitely for the bot)
+	if chatType == "private" {
+		return true
+	}
+
+	// For groups, only respond if message is clearly directed to the bot
 	if chatType == "group" || chatType == "supergroup" {
 		// Check if group is allowed
 		if len(allowedGroupIDs) > 0 {
@@ -181,28 +195,68 @@ func ShouldRespond(update *TelegramUpdate) bool {
 				return false
 			}
 		}
-	} else if chatType == "private" {
-		// Allow all private chats - bot will respond to all private messages
-		// No need to check allowedGroupIDs for private chats
-	} else {
-		// Ignore other chat types (channel, etc.)
-		return false
+
+		// Check if message is directed to the bot
+		return isMessageForBot(update, text)
 	}
 
-	// Bot will respond to all text messages in allowed groups
-	// This makes it behave like a real CS that's always ready to help
-	text := strings.TrimSpace(update.Message.Text)
-	if text == "" {
-		return false
+	// Ignore other chat types (channel, etc.)
+	return false
+}
+
+// isMessageForBot checks if a message in a group is clearly directed to the bot
+func isMessageForBot(update *TelegramUpdate, text string) bool {
+	textLower := strings.ToLower(text)
+
+	// Check if bot is mentioned
+	botUsername := os.Getenv("TELEGRAM_BOT_USERNAME")
+	if botUsername != "" {
+		botUsername = strings.ToLower(strings.TrimPrefix(botUsername, "@"))
+		if strings.Contains(textLower, "@"+botUsername) {
+			return true
+		}
 	}
 
-	// Ignore commands (messages starting with /)
-	if strings.HasPrefix(text, "/") {
-		return false
+	// Check if message is a reply to bot's message
+	if update.Message.ReplyToMessage != nil {
+		if update.Message.ReplyToMessage.From != nil && update.Message.ReplyToMessage.From.IsBot {
+			return true
+		}
 	}
 
-	// Respond to all other messages
-	return true
+	// Check for explicit bot mentions or requests
+	botKeywords := []string{
+		"bot", "cs", "admin", "min", "customer service",
+		"bantuan", "help", "tolong", "minta tolong",
+		"bisa bantu", "bisa tolong", "mau tanya",
+	}
+
+	for _, keyword := range botKeywords {
+		if strings.Contains(textLower, keyword) {
+			return true
+		}
+	}
+
+	// Check if message contains question mark (might be a question)
+	// But only if it's a short message (likely a question, not just casual chat)
+	if strings.Contains(text, "?") && len(text) < 200 {
+		// Check if it's a question about Xinxun/investment
+		xinxunKeywords := []string{
+			"xinxun", "produk", "harga", "profit", "penarikan",
+			"withdraw", "investasi", "router", "daftar", "beli",
+			"cara", "bagaimana", "kenapa", "mengapa", "apa",
+			"kapan", "dimana", "berapa", "minimal", "maksimal",
+		}
+		for _, keyword := range xinxunKeywords {
+			if strings.Contains(textLower, keyword) {
+				return true
+			}
+		}
+	}
+
+	// If none of the above, it's probably just casual chat between members
+	// Don't respond
+	return false
 }
 
 // GetConversationHistory returns the last 10 messages for a user
@@ -272,6 +326,11 @@ func detectFAQType(question string) string {
 	if strings.Contains(question, "cara beli") || strings.Contains(question, "cara pembelian") || strings.Contains(question, "beli produk") || strings.Contains(question, "pembelian") {
 		return "purchase"
 	}
+	if strings.Contains(question, "profit tidak masuk") || strings.Contains(question, "profit gak masuk") || strings.Contains(question, "profit belum masuk") ||
+		strings.Contains(question, "kenapa profit") || strings.Contains(question, "mengapa profit") || strings.Contains(question, "profit kok") ||
+		strings.Contains(question, "profit locked") || strings.Contains(question, "profit terkunci") || strings.Contains(question, "profit terlock") {
+		return "profit_router"
+	}
 
 	return ""
 }
@@ -291,6 +350,8 @@ func getContextData(faqType string) string {
 		return "Cara penarikan: 1) Pastikan saldo mencukupi dan waktu penarikan (Senin-Sabtu, 09:00-17:00 WIB), 2) Buka menu Penarikan, 3) Tambahkan rekening bank jika belum ada, 4) Masukkan jumlah yang ingin ditarik, 5) Pilih rekening tujuan, 6) Konfirmasi. Penarikan hanya dapat dilakukan 1 kali per hari."
 	case "purchase":
 		return "Cara membeli produk: 1) Buka aplikasi Xinxun, 2) Pilih menu Produk/Investasi, 3) Pilih produk yang ingin dibeli, 4) Baca detail produk (harga, profit, durasi), 5) Pilih metode pembayaran, 6) Klik Konfirmasi, 7) Lakukan pembayaran sesuai instruksi. Setelah pembayaran berhasil, produk akan otomatis berjalan sesuai durasi."
+	case "profit_router":
+		return getProfitRouterInfo()
 	default:
 		return ""
 	}
@@ -340,8 +401,36 @@ func getProductDataForAI() string {
 	// Add router information
 	response.WriteString("INFO PENTING PRODUK ROUTER:\n")
 	response.WriteString("Produk router akan diterima oleh member SETELAH KONTRAK BERAKHIR. Profit harian akan tetap berjalan sesuai durasi kontrak, dan router fisik akan dikirim setelah kontrak selesai.\n")
+	response.WriteString("\nSISTEM PROFIT ROUTER (PENTING!):\n")
+	response.WriteString("- Untuk produk ROUTER, profit TIDAK masuk setiap hari (profit terkunci/locked)\n")
+	response.WriteString("- Profit akan dikembalikan FULL selama durasi kontrak (70 hari) BESERTA modal setelah kontrak 70 hari selesai\n")
+	response.WriteString("- Jadi jika member membeli router dan profit tidak masuk, itu NORMAL karena profit router terkunci dan akan dikembalikan sekaligus setelah kontrak selesai\n")
 
 	return response.String()
+}
+
+// getProfitRouterInfo returns information about router profit system
+func getProfitRouterInfo() string {
+	return `INFORMASI PENTING TENTANG PROFIT ROUTER:
+
+PERTANYAAN YANG SERING DITANYAKAN: "Kenapa profit saya tidak masuk?"
+
+JAWABAN:
+Jika Anda membeli produk ROUTER, profit TIDAK akan masuk setiap hari karena profit router TERKUNCI (LOCKED).
+
+SISTEM PROFIT ROUTER:
+- Profit router TIDAK masuk setiap hari (profit terkunci/locked)
+- Profit akan dikembalikan FULL selama durasi kontrak (70 hari) BESERTA modal setelah kontrak 70 hari selesai
+- Jadi total yang akan diterima = Modal + (Profit Harian × 70 hari)
+- Router fisik juga akan dikirim setelah kontrak selesai
+
+JADI JIKA MEMBER BERTANYA "KENAPA PROFIT SAYA TIDAK MASUK?":
+- Cek dulu apakah mereka membeli produk ROUTER
+- Jika iya, jelaskan bahwa itu NORMAL karena profit router terkunci
+- Profit akan dikembalikan sekaligus setelah kontrak 70 hari selesai beserta modal
+- Router fisik juga akan dikirim setelah kontrak selesai
+
+CATATAN: Hanya produk ROUTER yang memiliki sistem profit terkunci. Produk lain profit masuk setiap hari seperti biasa.`
 }
 
 // getWithdrawalInfoForAI returns withdrawal information formatted for AI context
@@ -449,18 +538,20 @@ func CSBotWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	systemPrompt := `Kamu adalah customer service bot untuk aplikasi Xinxun, sebuah platform investasi. 
 Kamu adalah CS yang SUPER RAMAH, GAUL, dan selalu siap membantu member! 🎉
 
-PENTING: Kamu HARUS menggunakan bahasa Indonesia yang SANGAT SANTAI dan GAUL seperti teman ngobrol biasa. Jangan formal atau kaku!
+PENTING BANGET: Kamu HARUS menggunakan bahasa Indonesia yang SANGAT SANTAI, GAUL, dan RILEKS seperti teman ngobrol biasa. JANGAN formal, kaku, atau seperti robot!
 
-GAYA KOMUNIKASI (WAJIB DIIKUTI):
-- Gunakan bahasa GAUL dan SANTAI seperti ngobrol dengan teman dekat
-- Pakai kata-kata seperti: "nih", "ya", "gitu", "banget", "sih", "dong", "deh", "kayak", "gimana", "gini", dll
-- Pakai EMOJI yang banyak dan relevan untuk membuat chat lebih hidup dan friendly 😊🎉💪🔥✨
-- Ramah, hangat, dan enak diajak ngobrol seperti teman
+GAYA KOMUNIKASI (WAJIB DIIKUTI - JANGAN LANGKAHI!):
+- Gunakan bahasa SUPER GAUL dan SANTAI seperti ngobrol dengan teman dekat di WhatsApp
+- SELALU pakai kata-kata gaul seperti: "nih", "ya", "gitu", "banget", "sih", "dong", "deh", "kayak", "gimana", "gini", "kok", "aja", "dulu", "bang", "bro", dll
+- JANGAN mulai dengan "Gimana nih?" atau pertanyaan formal lainnya - langsung aja jawab dengan santai
+- Pakai EMOJI yang banyak dan relevan untuk membuat chat lebih hidup dan friendly 😊🎉💪🔥✨💯
+- Ramah, hangat, rileks, dan enak diajak ngobrol seperti teman
 - Bisa merespons berbagai jenis percakapan (pertanyaan serius, obrolan ringan, candaan, dll)
 - Jika ada yang mengobrol atau bercanda, ikuti dengan ramah dan asik
-- Jika ada pertanyaan serius tentang Xinxun, jawab dengan detail tapi tetap santai dan gaul
-- JANGAN gunakan bahasa formal atau kaku seperti "dengan hormat", "terima kasih atas", dll
-- Gunakan bahasa yang natural dan mengalir seperti manusia beneran
+- Jika ada pertanyaan serius tentang Xinxun, jawab dengan detail tapi tetap santai, gaul, dan rileks
+- JANGAN gunakan bahasa formal atau kaku seperti "dengan hormat", "terima kasih atas", "kamu ingin tahu", "gimana nih?", dll
+- Gunakan bahasa yang natural, mengalir, dan seperti manusia beneran yang lagi chat
+- JANGAN seperti robot atau customer service formal - kamu adalah teman yang lagi bantu
 
 INFORMASI PENTING TENTANG XINXUN:
 - Harga produk dan detail produk (akan diberikan di context)
@@ -468,6 +559,7 @@ INFORMASI PENTING TENTANG XINXUN:
 - Waktu penarikan: Senin-Sabtu, 09:00-17:00 WIB ⏰
 - Cara mendaftar, cara penarikan, cara pembelian (akan diberikan di context)
 - PRODUK ROUTER: Produk router akan diterima oleh member SETELAH KONTRAK BERAKHIR. Jadi profit harian akan tetap berjalan sesuai durasi kontrak, dan router fisik akan dikirim setelah kontrak selesai. 📦
+- PROFIT ROUTER (PENTING!): Untuk produk ROUTER, profit TIDAK masuk setiap hari karena profit terkunci (locked). Profit akan dikembalikan FULL selama durasi kontrak (70 hari) BESERTA modal setelah kontrak 70 hari selesai. Jadi jika member bertanya "kenapa profit saya tidak masuk?" dan mereka membeli router, itu NORMAL karena profit router terkunci dan akan dikembalikan sekaligus setelah kontrak selesai. ⚠️💰
 
 ATURAN PENTING:
 - HANYA jawab pertanyaan tentang Xinxun, investasi, produk, atau obrolan ringan sehari-hari
@@ -477,23 +569,40 @@ ATURAN PENTING:
 - SELALU gunakan emoji yang relevan (minimal 1-2 emoji per pesan) untuk membuat chat lebih friendly
 - Jika tidak tahu jawabannya, arahkan user dengan ramah dan gaul untuk menghubungi admin
 
-CONTOH GAYA JAWABAN YANG BENAR (GAUL & RAMAH):
+CONTOH GAYA JAWABAN YANG BENAR (GAUL, SANTAI, RILEKS):
 - "Wah, pertanyaan bagus nih! 😊 Jadi gini ya..."
-- "Oke, saya jelasin ya! 📝 Jadi..."
-- "Halo! Ada yang bisa saya bantu? 😄"
-- "Wah, maaf ya, saya cuma bisa bantu tentang Xinxun aja nih 😅"
+- "Oke, gue jelasin ya! 📝 Jadi..."
+- "Halo! Ada yang bisa dibantu? 😄"
+- "Wah, maaf ya, gue cuma bisa bantu tentang Xinxun aja nih 😅"
 - "Oke oke, gini nih caranya..."
 - "Wah keren nih pertanyaannya! Jadi..."
 - "Hmm, gini ya penjelasannya..."
 - "Nah, jadi gini nih..."
+- "Oke, langsung aja ya! 😊"
+- "Wah, ini pertanyaan yang sering ditanyain nih! Jadi..."
+- "Hai! Mau tanya apa nih? 😄"
+- "Oke, gue bantu jelasin ya! 💪"
 
-CONTOH YANG SALAH (JANGAN DILAKUKAN):
+CONTOH YANG SALAH (JANGAN DILAKUKAN - TERLALU KAKU/FORMAL):
+- "Gimana nih? Kamu ingin tahu tentang apa itu Xinxun?" ❌ (terlalu formal)
 - "Dengan hormat, saya akan menjelaskan..." ❌
 - "Terima kasih atas pertanyaan Anda..." ❌
 - "Saya akan membantu Anda dengan senang hati..." ❌
-- Jawaban formal dan kaku ❌
+- "Kamu ingin tahu tentang..." ❌ (terlalu formal)
+- "Apakah ada yang bisa saya bantu?" ❌ (terlalu formal)
+- Jawaban formal dan kaku seperti robot ❌
+- Kalimat yang terlalu panjang dan bertele-tele ❌
 
-Ingat: Kamu adalah CS yang SUPER ASIK, RAMAH, GAUL, dan selalu siap membantu dengan gaya bahasa santai dan gaul seperti teman ngobrol! Jangan kaku atau formal! 🚀✨`
+INGAT: Langsung jawab dengan santai dan gaul, jangan mulai dengan pertanyaan formal seperti "Gimana nih?" atau "Kamu ingin tahu tentang apa?"
+
+INGAT PENTING BANGET:
+- Kamu adalah CS yang SUPER ASIK, RAMAH, GAUL, RILEKS, dan selalu siap membantu
+- Gaya bahasa HARUS santai dan gaul seperti teman ngobrol di WhatsApp
+- JANGAN kaku, formal, atau seperti robot
+- JANGAN mulai dengan pertanyaan formal seperti "Gimana nih?" atau "Kamu ingin tahu tentang apa?"
+- Langsung aja jawab dengan santai, gaul, dan asik
+- Pakai kata-kata gaul dan emoji yang banyak
+- Rileks aja, kayak lagi chat sama temen! 🚀✨💯`
 
 	// Add context data to system prompt if available
 	if contextData != "" {
