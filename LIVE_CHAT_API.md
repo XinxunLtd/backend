@@ -305,8 +305,10 @@ Chat akan otomatis berakhir jika:
 - **Start Chat**: 60 requests per IP per 5 menit
 - **Send Message**: 60 requests per IP per 5 menit
 - **End Chat**: 60 requests per IP per 5 menit
-- **Get History**: 60 requests per IP per 5 menit
+- **Get History**: 500 requests per IP per 5 menit (sangat longgar untuk polling di room chat)
 - **Get Sessions**: 120 requests per user per menit (auth required)
+
+**Catatan:** Endpoint Get History memiliki rate limiter yang sangat longgar (500 requests per 5 menit) karena endpoint ini sering dipanggil untuk polling/polling di room chat untuk mendapatkan pesan terbaru. Ini memungkinkan frontend untuk melakukan polling yang lebih agresif tanpa terkena rate limit.
 
 ## AI Behavior
 

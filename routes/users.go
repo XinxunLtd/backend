@@ -19,6 +19,8 @@ func UsersRoutes(api *mux.Router) {
 	loginLimiter := middleware.NewIPRateLimiter(60, 5*time.Minute)
 	// Rate limiter session: 120 per user per menit (GET), 60 per user per menit (POST/PUT/DELETE)
 	userLimiter := middleware.NewUserRateLimiter(120, 60, 60) // 120 read, 60 write, window 60 detik
+	// Rate limiter untuk chat history: sangat longgar karena sering dipanggil saat polling di room chat
+	chatHistoryLimiter := middleware.NewIPRateLimiter(500, 5*time.Minute) // 500 requests per 5 menit
 
 	// Register & Login
 	api.Handle("/register", loginLimiter.Middleware(http.HandlerFunc(auth.RegisterHandler))).Methods(http.MethodPost)
@@ -93,8 +95,8 @@ func UsersRoutes(api *mux.Router) {
 	api.Handle("/livechat/{session_id}/message", loginLimiter.Middleware(http.HandlerFunc(controllers.SendMessageHandler))).Methods(http.MethodPost)
 	// End chat (public - session-based auth)
 	api.Handle("/livechat/{session_id}/end", loginLimiter.Middleware(http.HandlerFunc(controllers.EndChatHandler))).Methods(http.MethodPost)
-	// Get chat history (public - session-based auth)
-	api.Handle("/livechat/{session_id}/history", loginLimiter.Middleware(http.HandlerFunc(controllers.GetChatHistoryHandler))).Methods(http.MethodGet)
+	// Get chat history (public - session-based auth) - rate limiter sangat longgar untuk polling
+	api.Handle("/livechat/{session_id}/history", chatHistoryLimiter.Middleware(http.HandlerFunc(controllers.GetChatHistoryHandler))).Methods(http.MethodGet)
 	// Get all chat sessions (auth required - only for authenticated users)
 	api.Handle("/livechat/sessions", userLimiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(controllers.GetChatSessionsHandler)))).Methods(http.MethodGet)
 }
