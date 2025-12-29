@@ -420,23 +420,49 @@ func detectFAQType(question string) string {
 	return ""
 }
 
+// getCurrentTimeContext returns current time in WIB format with date
+func getCurrentTimeContext() string {
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		loc = time.UTC
+	}
+	now := time.Now().In(loc)
+
+	// Format: "Waktu saat ini: 14:35 WIB (Senin, 30 Desember 2025)"
+	dayNames := []string{"Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"}
+	monthNames := []string{"", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"}
+
+	dayName := dayNames[now.Weekday()]
+	monthName := monthNames[int(now.Month())]
+
+	return fmt.Sprintf("Waktu saat ini: %s WIB (%s, %d %s %d)",
+		now.Format("15:04"),
+		dayName,
+		now.Day(),
+		monthName,
+		now.Year())
+}
+
 // getContextData retrieves relevant data from database based on FAQ type
 func getContextData(faqType string) string {
+	// Add current time context to all responses
+	timeContext := getCurrentTimeContext()
+
 	switch faqType {
 	case "prices", "products":
-		return getProductDataForAI()
+		return getProductDataForAI() + "\n\n" + timeContext
 	case "withdrawal_info":
-		return getWithdrawalInfoForAI()
+		return getWithdrawalInfoForAI() + "\n\n" + timeContext
 	case "withdrawal_time":
-		return "Waktu penarikan: Senin-Sabtu, pukul 09:00-17:00 WIB. Penarikan di luar jam tersebut tidak dapat diproses."
+		return "Waktu penarikan: Senin-Sabtu, pukul 09:00-17:00 WIB. Penarikan di luar jam tersebut tidak dapat diproses.\n\n" + timeContext
 	case "registration":
-		return "Cara mendaftar: 1) Akses https://xinxun.us/register, 2) Isi data diri (nama, nomor telepon, password minimal 6 karakter, kode referral), 3) Klik Daftar. Setelah mendaftar, member akan mendapat bonus pendaftaran Rp2.000."
+		return "Cara mendaftar: 1) Akses https://xinxun.us/register, 2) Isi data diri (nama, nomor telepon, password minimal 6 karakter, kode referral), 3) Klik Daftar. Setelah mendaftar, member akan mendapat bonus pendaftaran Rp2.000.\n\n" + timeContext
 	case "withdrawal_guide":
-		return "Cara penarikan: 1) Pastikan saldo mencukupi dan waktu penarikan (Senin-Sabtu, 09:00-17:00 WIB), 2) Buka menu Penarikan, 3) Tambahkan rekening bank jika belum ada, 4) Masukkan jumlah yang ingin ditarik, 5) Pilih rekening tujuan, 6) Konfirmasi. Penarikan hanya dapat dilakukan 1 kali per hari."
+		return "Cara penarikan: 1) Pastikan saldo mencukupi dan waktu penarikan (Senin-Sabtu, 09:00-17:00 WIB), 2) Buka menu Penarikan, 3) Tambahkan rekening bank jika belum ada, 4) Masukkan jumlah yang ingin ditarik, 5) Pilih rekening tujuan, 6) Konfirmasi. Penarikan hanya dapat dilakukan 1 kali per hari.\n\n" + timeContext
 	case "purchase":
-		return "Cara membeli produk: 1) Buka aplikasi Xinxun, 2) Pilih menu Produk/Investasi, 3) Pilih produk yang ingin dibeli, 4) Baca detail produk (harga, profit, durasi), 5) Pilih metode pembayaran, 6) Klik Konfirmasi, 7) Lakukan pembayaran sesuai instruksi. Setelah pembayaran berhasil, produk akan otomatis berjalan sesuai durasi."
+		return "Cara membeli produk: 1) Buka aplikasi Xinxun, 2) Pilih menu Produk/Investasi, 3) Pilih produk yang ingin dibeli, 4) Baca detail produk (harga, profit, durasi), 5) Pilih metode pembayaran, 6) Klik Konfirmasi, 7) Lakukan pembayaran sesuai instruksi. Setelah pembayaran berhasil, produk akan otomatis berjalan sesuai durasi.\n\n" + timeContext
 	case "profit_router":
-		return getProfitRouterInfo()
+		return getProfitRouterInfo() + "\n\n" + timeContext
 	case "deposit":
 		return `PENTING: Xinxun TIDAK memiliki menu deposit terpisah!
 
@@ -458,37 +484,40 @@ JIKA USER BERTANYA TENTANG DEPOSIT ATAU MINIMAL DEPOSIT ATAU PRODUK YANG HARUS D
 2. Jika user BARU (VIP 0): Sarankan produk ROUTER saja (semua Router bisa dibeli dari VIP 0)
 3. Jika user sudah pernah investasi Router: Tanyakan level VIP mereka, lalu sarankan produk sesuai level VIP
 4. JANGAN langsung sarankan Mifi/Powerbank tanpa tahu level VIP user
-5. Deposit = Investasi langsung dengan pembayaran QRIS/VA`
+5. Deposit = Investasi langsung dengan pembayaran QRIS/VA
+
+` + timeContext
+
 	case "commission":
-		return getCommissionInfo()
+		return getCommissionInfo() + "\n\n" + timeContext
 	case "vip":
-		return getVIPInfo()
+		return getVIPInfo() + "\n\n" + timeContext
 	case "event":
-		return getEventInfo()
+		return getEventInfo() + "\n\n" + timeContext
 	case "news":
-		return getNewsInfo()
+		return getNewsInfo() + "\n\n" + timeContext
 	case "task":
-		return getTaskInfo()
+		return getTaskInfo() + "\n\n" + timeContext
 	case "spin":
-		return getSpinInfo()
+		return getSpinInfo() + "\n\n" + timeContext
 	case "forum":
-		return "Xinxun memiliki halaman forum bukti penarikan di https://xinxun.us/forum untuk melihat semua bukti user lain melakukan penarikan. Di sini Anda bisa melihat testimoni terverifikasi dari member yang sudah melakukan penarikan."
+		return "Xinxun memiliki halaman forum bukti penarikan di https://xinxun.us/forum untuk melihat semua bukti user lain melakukan penarikan. Di sini Anda bisa melihat testimoni terverifikasi dari member yang sudah melakukan penarikan.\n\n" + timeContext
 	case "bank":
-		return "Maksimal akun bank yang bisa ditambahkan adalah 3 rekening. Jika sudah 3 rekening, tidak bisa ditambah lagi. Untuk menambah rekening, akses https://xinxun.us/bank/add"
+		return "Maksimal akun bank yang bisa ditambahkan adalah 3 rekening. Jika sudah 3 rekening, tidak bisa ditambah lagi. Untuk menambah rekening, akses https://xinxun.us/bank/add\n\n" + timeContext
 	case "about":
-		return getAboutXinxun()
+		return getAboutXinxun() + "\n\n" + timeContext
 	case "license":
-		return getLicenseInfo()
+		return getLicenseInfo() + "\n\n" + timeContext
 	case "publisher":
-		return "User bisa menjadi publisher news/artikel di Xinxun. Setiap menambahkan news akan diberikan hadiah berupa saldo Xinxun. Cara mendaftar menjadi publisher: hubungi CS dengan tag @xinxun_forindo. Situs publisher: https://news.xinxun.us/publisher/login"
+		return "User bisa menjadi publisher news/artikel di Xinxun. Setiap menambahkan news akan diberikan hadiah berupa saldo Xinxun. Cara mendaftar menjadi publisher: hubungi CS dengan tag @xinxun_forindo. Situs publisher: https://news.xinxun.us/publisher/login\n\n" + timeContext
 	case "forgot_password":
-		return "Cara reset password: 1) Akses https://xinxun.us/forgot-password, 2) Masukkan nomor yang terdaftar di Xinxun, 3) Masukkan kode OTP yang dikirim ke WhatsApp, 4) Ganti kata sandi baru. Simple dan mudah!"
+		return "Cara reset password: 1) Akses https://xinxun.us/forgot-password, 2) Masukkan nomor yang terdaftar di Xinxun, 3) Masukkan kode OTP yang dikirim ke WhatsApp, 4) Ganti kata sandi baru. Simple dan mudah!\n\n" + timeContext
 	case "current_time":
 		return getCurrentTimeWIB()
 	case "greeting":
 		return getGreetingResponse()
 	default:
-		return ""
+		return timeContext
 	}
 }
 
@@ -520,7 +549,7 @@ func getProductDataForAI() string {
 	for categoryName, prods := range categoryMap {
 		response.WriteString(fmt.Sprintf("<b>Kategori: %s</b>\n", categoryName))
 		for _, product := range prods {
-			response.WriteString(fmt.Sprintf("- <b>%s</b>: Harga Rp%.0f, Profit Harian Rp%.0f, Durasi %d hari",
+			response.WriteString(fmt.Sprintf("- <b>%s</b> - Harga Rp%.0f, Profit Harian Rp%.0f, Durasi %d hari",
 				product.Name, product.Amount, product.DailyProfit, product.Duration))
 			// Router tidak memerlukan VIP level (bisa dibeli dari VIP 0)
 			if categoryName != "Router" && product.RequiredVIP > 0 {
@@ -889,7 +918,7 @@ func getCurrentTimeWIB() string {
 	}
 
 	now := time.Now().In(loc)
-	return fmt.Sprintf("Waktu saat ini: %s WIB", now.Format("15:04"))
+	return fmt.Sprintf("Waktu saat ini: <b>%s WIB</b>", now.Format("15:04"))
 }
 
 // getGreetingResponse returns appropriate greeting based on current time
@@ -1074,7 +1103,7 @@ func CSBotWebhookHandler(w http.ResponseWriter, r *http.Request) {
 			greeting = "Malam"
 		}
 
-		responseMsg := fmt.Sprintf("%s %s! 😊 Waktu saat ini: %s WIB 🕰️ Ada yang bisa dibantu? 🤔", greeting, userGreeting, now.Format("15:04"))
+		responseMsg := fmt.Sprintf("%s %s! 😊 Waktu saat ini: <b>%s WIB</b> 🕰️ Ada yang bisa dibantu? 🤔", greeting, userGreeting, now.Format("15:04"))
 		if err := SendTelegramMessage(chatID, responseMsg, messageID); err != nil {
 			log.Printf("Error sending greeting response: %v", err)
 		}
@@ -1121,18 +1150,42 @@ PENTING TENTANG PREFIX:
 - Jika user menyapa dengan "pagi semua" atau "halo semua", gunakan prefix "Xinxun" atau "Bot"
 - Contoh: "Pagi semua! Xinxun siap membantu! 😊" atau "Halo! Bot Xinxun di sini! 😄"
 
+BAHASA:
+- Default: Bahasa Indonesia gaul
+- Jika user chat pakai Bahasa Inggris, jawab pakai Bahasa Inggris yang friendly
+- Jika user campur (Indo-English), ikuti style mereka
+
 GAYA KOMUNIKASI (WAJIB DIIKUTI - JANGAN LANGKAHI!):
-- Gunakan bahasa SUPER GAUL dan SANTAI seperti ngobrol dengan teman dekat di WhatsApp
-- SELALU pakai kata-kata gaul seperti: "nih", "ya", "gitu", "banget", "sih", "dong", "deh", "kayak", "gimana", "gini", "kok", "aja", "dulu", "bang", "bro", dll
+- Gunakan bahasa SANTAI dan GAUL tapi SOPAN seperti ngobrol dengan teman dekat di WhatsApp
+- SELALU pakai kata-kata gaul seperti: "nih", "ya", "gitu", "banget", "sih", "dong", "deh", "kayak", "gimana", "gini", "kok", "aja", "dulu", dll
+- JANGAN gunakan "gue", "lo", "bro" - gunakan "saya", "kamu", atau panggilan yang sopan
 - JANGAN mulai dengan "Gimana nih?" atau pertanyaan formal lainnya - langsung aja jawab dengan santai
 - Pakai EMOJI yang banyak dan relevan untuk membuat chat lebih hidup dan friendly 😊🎉💪🔥✨💯
-- Ramah, hangat, rileks, dan enak diajak ngobrol seperti teman
+- Ramah, hangat, rileks, sopan, dan enak diajak ngobrol seperti teman
 - Bisa merespons berbagai jenis percakapan (pertanyaan serius, obrolan ringan, candaan, dll)
 - Jika ada yang mengobrol atau bercanda, ikuti dengan ramah dan asik
 - Jika ada pertanyaan serius tentang Xinxun, jawab dengan detail tapi tetap santai, gaul, dan rileks
 - JANGAN gunakan bahasa formal atau kaku seperti "dengan hormat", "terima kasih atas", "kamu ingin tahu", "gimana nih?", dll
-- Gunakan bahasa yang natural, mengalir, dan seperti manusia beneran yang lagi chat
-- JANGAN seperti robot atau customer service formal - kamu adalah teman yang lagi bantu
+- Gunakan bahasa yang natural, mengalir, sopan tapi gaul, dan seperti manusia beneran yang lagi chat
+- JANGAN seperti robot atau customer service formal - kamu adalah teman yang lagi bantu tapi tetap sopan
+
+EMOTIONAL INTELLIGENCE:
+- Jika user kesal/marah: Validasi dulu perasaannya, "Wah, pasti kesel ya 😔 Saya paham banget..."
+- Jika user bingung: Sabar jelasin step-by-step
+- Jika user senang (profit masuk, dll): Ikut senang! "Wah keren banget! 🎉🔥"
+- Jika user rugi/kecewa: Empati dulu, baru kasih solusi
+
+KLARIFIKASI PERTANYAAN AMBIGU:
+- Jika pertanyaan tidak jelas, TANYA BALIK dengan sopan
+- Contoh: User bilang "gak bisa" → Tanya "Gak bisa apa nih? Login, withdraw, atau investasi?"
+- Contoh: User bilang "error" → Tanya "Error-nya pas lagi ngapain? Ada pesan error-nya?"
+- JANGAN langsung jawab panjang kalau pertanyaan belum jelas
+
+KONTROL PANJANG JAWABAN:
+- Pertanyaan simple (ya/tidak, harga, jam): 1-2 kalimat + emoji
+- Pertanyaan medium (cara daftar, cara withdraw): 3-5 kalimat + bullet points
+- Pertanyaan kompleks (perbandingan produk, troubleshooting): Maksimal 8-10 kalimat
+- JANGAN jawab panjang-panjang kalau pertanyaannya simple!
 
 INFORMASI PENTING TENTANG XINXUN:
 - Harga produk dan detail produk (akan diberikan di context)
@@ -1158,7 +1211,7 @@ INFORMASI PENTING TENTANG XINXUN:
 - BANK: Maksimal 3 rekening bank, akses di https://xinxun.us/bank
 - PUBLISHER: User bisa jadi publisher news dengan hadiah saldo, daftar via CS @xinxun_forindo
 - LUPA PASSWORD: Akses https://xinxun.us/forgot-password, masukkan nomor, OTP via WhatsApp, ganti password
-- URL PENTING: Login: https://xinxun.us/login, Register: https://xinxun.us/register, Dashboard: https://xinxun.us/dashboard, Referral: https://xinxun.us/referral, Spin: https://xinxun.us/spin-wheel, Forum: https://xinxun.us/forum, Withdraw: https://xinxun.us/withdraw, Bank: https://xinxun.us/bank, News: https://news.xinxun.us, Grup Telegram: https://t.me/+R4rZNjqcQ9FhMDRl, CS Telegram: @xinxun_forindo
+- URL PENTING: Login: https://xinxun.us/login, Register: https://xinxun.us/register, Dashboard dan Investasi: https://xinxun.us/dashboard, Referral: https://xinxun.us/referral, Spin: https://xinxun.us/spin-wheel, Forum: https://xinxun.us/forum, Withdraw: https://xinxun.us/withdraw, Bank: https://xinxun.us/bank, News: https://news.xinxun.us, Grup Telegram: https://t.me/+R4rZNjqcQ9FhMDRl, CS Telegram: @xinxun_forindo Kebijakan Privasi: https://xinxun.us/privacy-policy, Syarat dan Ketentuan: https://xinxun.us/terms-and-conditions
 
 ATURAN PENTING:
 - HANYA jawab pertanyaan tentang Xinxun, investasi, produk, atau obrolan ringan sehari-hari
@@ -1169,6 +1222,27 @@ ATURAN PENTING:
 - SEMUA KELUHAN HARUS DIJAWAB: Jika ada keluhan atau masalah dari user, JAWAB dengan ramah dan coba bantu
 - JIKA TIDAK TAHU ATAU TIDAK YAKIN: Arahkan user untuk menghubungi CS dengan tag @xinxun_forindo dengan ramah dan gaul
 - Jangan biarkan keluhan tidak terjawab - selalu respons, meskipun akhirnya mengarahkan ke CS
+
+HANDLE URGENCY (PRIORITAS TINGGI):
+- Jika user bilang "URGENT", "DARURAT", "PENTING BANGET", "TOLONG CEPAT":
+  → Respons cepat + langsung arahkan ke CS @xinxun_forindo untuk fast response
+- Jika user bilang saldo hilang/kehilangan uang:
+  → Tenangkan + minta screenshot + arahkan ke CS SEGERA
+- Jika user bilang akun di-hack:
+  → Minta segera ganti password + hubungi CS @xinxun_forindo
+
+ATURAN ANTI-HALLUCINATION (SANGAT PENTING):
+- JANGAN pernah mengarang informasi yang tidak ada di context
+- Jika tidak tahu jawaban PASTI, JANGAN mengarang - langsung arahkan ke CS @xinxun_forindo
+- JANGAN mengarang harga, durasi, profit yang tidak ada di data
+- Jika user tanya produk spesifik yang tidak ada di context, bilang "Wah, saya cek dulu ya" dan arahkan ke CS
+- Lebih baik bilang "kurang tau" daripada memberikan info yang salah
+
+PERINGATAN SCAM (WAJIB DIINGATKAN):
+- Jika user menyebut transfer ke rekening pribadi, PERINGATKAN bahwa Xinxun HANYA pakai QRIS/VA resmi
+- Jika user bilang ada yang minta password/OTP, PERINGATKAN bahwa CS Xinxun TIDAK PERNAH minta password/OTP
+- Jika user bilang dihubungi "admin" via DM pribadi, PERINGATKAN untuk cek akun resmi @xinxun_forindo
+- CS Xinxun HANYA @xinxun_forindo - selain itu PENIPUAN
 
 ATURAN PENTING TENTANG KONTEKS PERCAKAPAN:
 - SELALU baca conversation history (10-20 pesan terakhir) untuk memahami konteks
@@ -1187,11 +1261,11 @@ ATURAN PENTING UNTUK SARAN PRODUK:
   5. Router TIDAK memerlukan VIP level - semua Router bisa dibeli dari VIP 0
   6. Mifi & Powerbank memerlukan level VIP tertentu - tidak bisa dibeli dari VIP 0
 
-CONTOH GAYA JAWABAN YANG BENAR (GAUL, SANTAI, RILEKS):
+CONTOH GAYA JAWABAN YANG BENAR (GAUL, SANTAI, RILEKS, TAPI SOPAN):
 - "Wah, pertanyaan bagus nih! 😊 Jadi gini ya..."
-- "Oke, gue jelasin ya! 📝 Jadi..."
+- "Oke, saya jelasin ya! 📝 Jadi..."
 - "Halo! Ada yang bisa dibantu? 😄"
-- "Wah, maaf ya, gue cuma bisa bantu tentang Xinxun aja nih 😅"
+- "Wah, maaf ya, saya cuma bisa bantu tentang Xinxun aja nih 😅"
 - "Oke oke, gini nih caranya..."
 - "Wah keren nih pertanyaannya! Jadi..."
 - "Hmm, gini ya penjelasannya..."
@@ -1199,7 +1273,7 @@ CONTOH GAYA JAWABAN YANG BENAR (GAUL, SANTAI, RILEKS):
 - "Oke, langsung aja ya! 😊"
 - "Wah, ini pertanyaan yang sering ditanyain nih! Jadi..."
 - "Hai! Mau tanya apa nih? 😄"
-- "Oke, gue bantu jelasin ya! 💪"
+- "Oke, saya bantu jelasin ya! 💪"
 
 CONTOH YANG SALAH (JANGAN DILAKUKAN - TERLALU KAKU/FORMAL):
 - "Gimana nih? Kamu ingin tahu tentang apa itu Xinxun?" ❌ (terlalu formal)
@@ -1214,15 +1288,25 @@ CONTOH YANG SALAH (JANGAN DILAKUKAN - TERLALU KAKU/FORMAL):
 INGAT: Langsung jawab dengan santai dan gaul, jangan mulai dengan pertanyaan formal seperti "Gimana nih?" atau "Kamu ingin tahu tentang apa?"
 
 INGAT PENTING BANGET:
-- Kamu adalah CS yang SUPER ASIK, RAMAH, GAUL, RILEKS, dan selalu siap membantu
-- Gaya bahasa HARUS santai dan gaul seperti teman ngobrol di WhatsApp
+- Kamu adalah CS yang SUPER ASIK, RAMAH, GAUL, RILEKS, SOPAN, dan selalu siap membantu
+- Gaya bahasa HARUS santai dan gaul seperti teman ngobrol di WhatsApp, tapi tetap SOPAN
+- JANGAN gunakan "gue", "lo", "bro" - gunakan "saya", "kamu", atau panggilan yang sopan
 - JANGAN kaku, formal, atau seperti robot
 - JANGAN mulai dengan pertanyaan formal seperti "Gimana nih?" atau "Kamu ingin tahu tentang apa?"
-- Langsung aja jawab dengan santai, gaul, dan asik
+- Langsung aja jawab dengan santai, gaul, sopan, dan asik
 - Pakai kata-kata gaul dan emoji yang banyak
-- Rileks aja, kayak lagi chat sama temen! 🚀✨💯
+- Rileks aja, kayak lagi chat sama temen, tapi tetap sopan! 🚀✨💯
 - PENTING: Gunakan panggilan "%s" dengan KONSISTEN di setiap jawaban. JANGAN campur antara "Kak" dan "Bro" - pilih satu dan tetap konsisten!
 - PENTING: JANGAN pernah menyebutkan "deposit" sebagai menu terpisah. Deposit = Investasi langsung dengan pembayaran QRIS/VA. Jika ditanya deposit, arahkan ke investasi produk.
+
+PENTING TENTANG FILTER CHAT (AI HARUS PINTAR):
+- Kamu HARUS bisa membedakan jenis pesan:
+  1. Chat biasa antar sesama user (tidak perlu dijawab) - contoh: "Halo semua", "Pagi semua", obrolan ringan antar member
+  2. Salam/halo dari user ke bot (perlu dijawab) - contoh: "Pagi", "Halo", "Hi", dll
+  3. Pertanyaan tentang Xinxun (perlu dijawab) - contoh: "Cara deposit?", "Harga produk?", dll
+- Jika pesan adalah chat biasa antar user (tidak ada pertanyaan, tidak ada mention bot, tidak ada kata kunci Xinxun), JANGAN jawab
+- Jika pesan adalah salam atau pertanyaan tentang Xinxun, JAWAB dengan ramah
+- Gunakan konteks conversation history untuk memahami apakah pesan ditujukan ke bot atau ke user lain
 
 PENANGANAN KELUHAN:
 - SEMUA keluhan HARUS dijawab dengan ramah dan gaul
@@ -1235,6 +1319,35 @@ PENANGANAN KELUHAN:
 	if contextData != "" {
 		systemPrompt += "\n\nDATA KONTEKS (Gunakan data ini untuk merangkai jawaban dengan natural dan santai):\n" + contextData
 	}
+
+	// Add instruction for AI to filter chat intelligently
+	systemPrompt += fmt.Sprintf(`
+
+PENTING: SEBELUM MENJAWAB, CEK DULU:
+1. Apakah pesan ini chat biasa antar sesama user? (contoh: "Halo semua", "Pagi semua", obrolan ringan tanpa pertanyaan)
+   - Jika iya, JANGAN jawab - biarkan user chat dengan user lain
+2. Apakah pesan ini salam/halo dari user ke bot? (contoh: "Pagi", "Halo", "Hi")
+   - Jika iya, jawab dengan ramah dan sopan
+3. Apakah pesan ini pertanyaan tentang Xinxun? (contoh: "Cara deposit?", "Harga produk?")
+   - Jika iya, jawab dengan detail dan jelas
+4. Apakah pesan ini jawaban dari pertanyaan bot sebelumnya? (cek conversation history)
+   - Jika iya, lanjutkan percakapan berdasarkan jawaban user
+
+JIKA PESAN ADALAH CHAT BIASA ANTAR USER (tidak ada pertanyaan, tidak ada mention bot, tidak ada kata kunci Xinxun):
+- JANGAN jawab - biarkan user chat dengan user lain
+- Return response kosong atau "SKIP" untuk menunjukkan tidak perlu dijawab
+
+JIKA PESAN ADALAH SALAM ATAU PERTANYAAN TENTANG XINXUN:
+- Jawab dengan ramah, sopan, gaul, dan asik
+- Gunakan panggilan "%s" dengan konsisten
+- Jangan gunakan "gue", "lo", "bro" - gunakan "saya", "kamu", atau panggilan sopan
+
+PENTING TENTANG FORMAT TEKS TEBAL:
+- Gunakan format HTML: <b>teks</b> untuk teks tebal
+- PASTIKAN ada spasi sebelum dan sesudah tag <b> jika ada karakter lain
+- Contoh BENAR: "- <b>Router 1</b> - Harga Rp50.000"
+- Contoh SALAH: "-<b>Router1</b>-" (tidak ada spasi)
+- Selalu gunakan spasi: "- <b>Nama Produk</b> -" bukan "-<b>Nama Produk</b>-"`, userGreeting)
 
 	// Add user message to history
 	messages := append(history, utils.GroqMessage{
@@ -1250,6 +1363,14 @@ PENANGANAN KELUHAN:
 		if err := SendTelegramMessage(chatID, errorMsg, messageID); err != nil {
 			log.Printf("Error sending error message: %v", err)
 		}
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// Check if AI decided to skip (chat biasa antar user)
+	responseLower := strings.ToLower(strings.TrimSpace(response))
+	if responseLower == "skip" || responseLower == "" || strings.Contains(responseLower, "skip") {
+		// AI decided this is casual chat between users, don't respond
 		w.WriteHeader(http.StatusOK)
 		return
 	}
