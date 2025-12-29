@@ -271,12 +271,31 @@ func isMessageForBot(update *TelegramUpdate, text string) bool {
 		}
 	}
 
+	// Check conversation history - if bot asked a question recently, this might be an answer
+	history := GetConversationHistory(update.Message.From.ID)
+	if len(history) > 0 {
+		// Check if last message from bot was a question
+		lastMessage := history[len(history)-1]
+		if lastMessage.Role == "assistant" {
+			lastContent := strings.ToLower(lastMessage.Content)
+			// Check if last bot message contains a question
+			if strings.Contains(lastContent, "?") ||
+				strings.Contains(lastContent, "kamu baru") ||
+				strings.Contains(lastContent, "sudah pernah") ||
+				strings.Contains(lastContent, "level vip") ||
+				strings.Contains(lastContent, "baru di xinxun") {
+				// This is likely an answer to bot's question
+				return true
+			}
+		}
+	}
+
 	// If none of the above, it's probably just casual chat between members
 	// Don't respond
 	return false
 }
 
-// GetConversationHistory returns the last 10 messages for a user
+// GetConversationHistory returns the last 20 messages for a user
 func GetConversationHistory(userID int64) []utils.GroqMessage {
 	historyMutex.RLock()
 	defer historyMutex.RUnlock()
@@ -286,9 +305,9 @@ func GetConversationHistory(userID int64) []utils.GroqMessage {
 		return []utils.GroqMessage{}
 	}
 
-	// Return last 10 messages
-	if len(history.Messages) > 10 {
-		return history.Messages[len(history.Messages)-10:]
+	// Return last 20 messages for better context
+	if len(history.Messages) > 20 {
+		return history.Messages[len(history.Messages)-20:]
 	}
 	return history.Messages
 }
@@ -310,9 +329,9 @@ func AddToConversationHistory(userID int64, role string, content string) {
 		Content: content,
 	})
 
-	// Keep only last 10 messages
-	if len(conversationHistory[userID].Messages) > 10 {
-		conversationHistory[userID].Messages = conversationHistory[userID].Messages[len(conversationHistory[userID].Messages)-10:]
+	// Keep only last 20 messages for better context
+	if len(conversationHistory[userID].Messages) > 20 {
+		conversationHistory[userID].Messages = conversationHistory[userID].Messages[len(conversationHistory[userID].Messages)-20:]
 	}
 
 	conversationHistory[userID].LastSeen = time.Now()
@@ -981,6 +1000,42 @@ func CSBotWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		strings.Contains(questionLower, "makasih") ||
 		strings.Contains(questionLower, "thanks")
 
+	// Check if this is an answer to bot's previous question
+	// Look at conversation history to see if bot asked something recently
+	if !isXinxunRelated && len(history) > 0 {
+		// Check last few messages from bot
+		for i := len(history) - 1; i >= 0 && i >= len(history)-5; i-- {
+			if history[i].Role == "assistant" {
+				botMessage := strings.ToLower(history[i].Content)
+				// Check if bot asked a question
+				if strings.Contains(botMessage, "?") ||
+					strings.Contains(botMessage, "kamu baru") ||
+					strings.Contains(botMessage, "sudah pernah") ||
+					strings.Contains(botMessage, "level vip") ||
+					strings.Contains(botMessage, "baru di xinxun") ||
+					strings.Contains(botMessage, "pernah investasi") {
+					// Check if user message looks like an answer
+					answerKeywords := []string{
+						"udah", "sudah", "pernah", "baru", "iya", "ya", "tidak", "belum",
+						"vip 0", "vip 1", "vip 2", "vip 3", "vip 4", "vip 5",
+						"level 0", "level 1", "level 2", "level 3", "level 4", "level 5",
+					}
+					for _, keyword := range answerKeywords {
+						if strings.Contains(questionLower, keyword) {
+							isXinxunRelated = true
+							break
+						}
+					}
+					// Also check if message is short (likely an answer)
+					if len(strings.Fields(userMessage)) <= 5 {
+						isXinxunRelated = true
+					}
+					break
+				}
+			}
+		}
+	}
+
 	// If not related to Xinxun or daily conversation, politely decline
 	if !isXinxunRelated {
 		declineMsg := "Maaf ya 😅 Saya hanya bisa membantu tentang Xinxun atau obrolan ringan aja. Kalau ada pertanyaan tentang Xinxun, investasi, produk, penarikan, atau hal lain yang berhubungan, silakan tanya aja! 😊"
@@ -1036,10 +1091,17 @@ func CSBotWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build system prompt with updated style
-	systemPrompt := fmt.Sprintf(`Kamu adalah customer service bot untuk aplikasi Xinxun, sebuah platform investasi. 
+	systemPrompt := fmt.Sprintf(`Kamu adalah customer service bot telegram untuk aplikasi Xinxun, sebuah platform investasi. 
 Kamu adalah CS yang SUPER RAMAH, GAUL, dan selalu siap membantu member! 🎉
 
 PENTING: Panggil user dengan "%s" di awal jawaban. JANGAN campur antara "Kak" dan "Bro" - gunakan konsisten sesuai yang diberikan.
+
+PENTING TENTANG KONTEKS PERCAKAPAN:
+- Kamu HARUS membaca dan memahami conversation history (10-20 pesan terakhir)
+- Jika kamu baru saja bertanya sesuatu kepada user, dan user menjawab dengan singkat (seperti "udah pernah", "baru", "iya", "tidak", "vip 1", dll), itu adalah JAWABAN dari pertanyaanmu
+- LANJUTKAN percakapan berdasarkan jawaban user tersebut - jangan ulang pertanyaan atau bilang "maaf"
+- Contoh: Jika kamu tanya "Kamu baru di Xinxun atau sudah pernah investasi sebelumnya?" dan user jawab "udah pernah", lanjutkan dengan menanyakan level VIP mereka atau memberikan saran produk sesuai konteks
+- JANGAN mengabaikan jawaban user dari pertanyaanmu sendiri - itu adalah bagian dari percakapan yang sedang berlangsung
 
 PENTING BANGET: Kamu HARUS menggunakan bahasa Indonesia yang SANGAT SANTAI, GAUL, dan RILEKS seperti teman ngobrol biasa. JANGAN formal, kaku, atau seperti robot!
 
@@ -1107,6 +1169,14 @@ ATURAN PENTING:
 - SEMUA KELUHAN HARUS DIJAWAB: Jika ada keluhan atau masalah dari user, JAWAB dengan ramah dan coba bantu
 - JIKA TIDAK TAHU ATAU TIDAK YAKIN: Arahkan user untuk menghubungi CS dengan tag @xinxun_forindo dengan ramah dan gaul
 - Jangan biarkan keluhan tidak terjawab - selalu respons, meskipun akhirnya mengarahkan ke CS
+
+ATURAN PENTING TENTANG KONTEKS PERCAKAPAN:
+- SELALU baca conversation history (10-20 pesan terakhir) untuk memahami konteks
+- Jika kamu baru saja bertanya sesuatu kepada user, dan user menjawab (meskipun singkat), itu adalah JAWABAN dari pertanyaanmu
+- LANJUTKAN percakapan berdasarkan jawaban user - jangan ulang pertanyaan atau bilang "maaf"
+- Contoh: Jika kamu tanya "Kamu baru di Xinxun atau sudah pernah investasi sebelumnya?" dan user jawab "udah pernah", lanjutkan dengan menanyakan level VIP atau memberikan saran produk
+- JANGAN mengabaikan jawaban user dari pertanyaanmu sendiri - itu adalah bagian dari percakapan yang sedang berlangsung
+- Jika user menjawab pertanyaanmu dengan singkat (seperti "udah pernah", "baru", "iya", "tidak", "vip 1", dll), lanjutkan percakapan dengan natural
 
 ATURAN PENTING UNTUK SARAN PRODUK:
 - JIKA USER BERTANYA TENTANG DEPOSIT/MINIMAL DEPOSIT/PRODUK YANG HARUS DIAMBIL DENGAN MODAL TERTENTU:
