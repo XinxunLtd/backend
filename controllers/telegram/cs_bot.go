@@ -387,6 +387,16 @@ func detectFAQType(question string) string {
 	if strings.Contains(question, "lupa password") || strings.Contains(question, "forgot password") || strings.Contains(question, "reset password") {
 		return "forgot_password"
 	}
+	if strings.Contains(question, "jam berapa") || strings.Contains(question, "waktu sekarang") || strings.Contains(question, "jam sekarang") || strings.Contains(question, "pukul berapa") {
+		return "current_time"
+	}
+	if strings.Contains(question, "pagi") || strings.Contains(question, "siang") || strings.Contains(question, "sore") || strings.Contains(question, "malam") ||
+		strings.Contains(question, "halo") || strings.Contains(question, "hai") || strings.Contains(question, "hi") || strings.Contains(question, "hello") {
+		// Check if it's just a greeting (not a question about greeting)
+		if !strings.Contains(question, "?") && !strings.Contains(question, "apa") && !strings.Contains(question, "bagaimana") {
+			return "greeting"
+		}
+	}
 
 	return ""
 }
@@ -417,7 +427,19 @@ Cara "deposit" di Xinxun:
 - Tidak ada biaya deposit tambahan
 - Minimal investasi sesuai dengan produk yang dipilih
 
-Jadi jika user bertanya tentang deposit atau minimal deposit, arahkan ke investasi produk. Deposit = Investasi langsung dengan pembayaran QRIS/VA.`
+SISTEM VIP & PRODUK (PENTING UNTUK SARAN PRODUK):
+- User BARU (VIP 0): Hanya bisa membeli produk ROUTER. Semua produk Router bisa dibeli dari VIP 0 (tidak ada requirement VIP untuk Router)
+- Setelah investasi Router, level VIP otomatis naik sesuai total investasi Router
+- Setelah level VIP naik, baru bisa membeli produk Mifi sesuai level VIP yang dicapai
+- Mifi & Powerbank memerlukan level VIP tertentu (tidak bisa dibeli dari VIP 0)
+- Router TIDAK memerlukan VIP level - semua Router bisa dibeli dari VIP 0
+
+JIKA USER BERTANYA TENTANG DEPOSIT ATAU MINIMAL DEPOSIT ATAU PRODUK YANG HARUS DIAMBIL:
+1. TANYA DULU apakah user baru atau sudah pernah investasi di Xinxun
+2. Jika user BARU (VIP 0): Sarankan produk ROUTER saja (semua Router bisa dibeli dari VIP 0)
+3. Jika user sudah pernah investasi Router: Tanyakan level VIP mereka, lalu sarankan produk sesuai level VIP
+4. JANGAN langsung sarankan Mifi/Powerbank tanpa tahu level VIP user
+5. Deposit = Investasi langsung dengan pembayaran QRIS/VA`
 	case "commission":
 		return getCommissionInfo()
 	case "vip":
@@ -442,6 +464,10 @@ Jadi jika user bertanya tentang deposit atau minimal deposit, arahkan ke investa
 		return "User bisa menjadi publisher news/artikel di Xinxun. Setiap menambahkan news akan diberikan hadiah berupa saldo Xinxun. Cara mendaftar menjadi publisher: hubungi CS dengan tag @xinxun_forindo. Situs publisher: https://news.xinxun.us/publisher/login"
 	case "forgot_password":
 		return "Cara reset password: 1) Akses https://xinxun.us/forgot-password, 2) Masukkan nomor yang terdaftar di Xinxun, 3) Masukkan kode OTP yang dikirim ke WhatsApp, 4) Ganti kata sandi baru. Simple dan mudah!"
+	case "current_time":
+		return getCurrentTimeWIB()
+	case "greeting":
+		return getGreetingResponse()
 	default:
 		return ""
 	}
@@ -477,8 +503,11 @@ func getProductDataForAI() string {
 		for _, product := range prods {
 			response.WriteString(fmt.Sprintf("- <b>%s</b>: Harga Rp%.0f, Profit Harian Rp%.0f, Durasi %d hari",
 				product.Name, product.Amount, product.DailyProfit, product.Duration))
-			if product.RequiredVIP > 0 {
+			// Router tidak memerlukan VIP level (bisa dibeli dari VIP 0)
+			if categoryName != "Router" && product.RequiredVIP > 0 {
 				response.WriteString(fmt.Sprintf(", VIP Level %d", product.RequiredVIP))
+			} else if categoryName == "Router" {
+				response.WriteString(" (VIP 0 bisa beli)")
 			}
 			if product.PurchaseLimit > 0 {
 				response.WriteString(fmt.Sprintf(", Batas Pembelian %d kali", product.PurchaseLimit))
@@ -495,6 +524,10 @@ func getProductDataForAI() string {
 	response.WriteString("- Untuk produk ROUTER, profit TIDAK masuk setiap hari (profit terkunci/locked)\n")
 	response.WriteString("- Profit akan dikembalikan FULL selama durasi kontrak (70 hari) BESERTA modal setelah kontrak 70 hari selesai\n")
 	response.WriteString("- Jadi jika member membeli router dan profit tidak masuk, itu NORMAL karena profit router terkunci dan akan dikembalikan sekaligus setelah kontrak selesai\n")
+	response.WriteString("\n<b>VIP Level untuk Router (Penting!)</b> ⭐\n")
+	response.WriteString("- Semua produk ROUTER bisa dibeli dari VIP 0 (TIDAK ada requirement VIP untuk Router)\n")
+	response.WriteString("- Router TIDAK memerlukan VIP level tertentu - semua Router bisa dibeli oleh user baru\n")
+	response.WriteString("- Setelah investasi Router, level VIP otomatis naik sesuai total investasi Router\n")
 
 	return response.String()
 }
@@ -827,6 +860,44 @@ func getUserGreeting(user *struct {
 	return "Bro"
 }
 
+// getCurrentTimeWIB returns current time in WIB format
+func getCurrentTimeWIB() string {
+	// Load Asia/Jakarta timezone
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		// Fallback to UTC if timezone not available
+		loc = time.UTC
+	}
+
+	now := time.Now().In(loc)
+	return fmt.Sprintf("Waktu saat ini: %s WIB", now.Format("15:04"))
+}
+
+// getGreetingResponse returns appropriate greeting based on current time
+func getGreetingResponse() string {
+	// Load Asia/Jakarta timezone
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		loc = time.UTC
+	}
+
+	now := time.Now().In(loc)
+	hour := now.Hour()
+
+	var greeting string
+	if hour >= 5 && hour < 12 {
+		greeting = "Pagi"
+	} else if hour >= 12 && hour < 15 {
+		greeting = "Siang"
+	} else if hour >= 15 && hour < 19 {
+		greeting = "Sore"
+	} else {
+		greeting = "Malam"
+	}
+
+	return fmt.Sprintf("Salam: %s! Waktu saat ini: %s WIB", greeting, now.Format("15:04"))
+}
+
 // getWithdrawalInfoForAI returns withdrawal information formatted for AI context
 func getWithdrawalInfoForAI() string {
 	sqlDB, err := database.DB.DB()
@@ -925,6 +996,39 @@ func CSBotWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	// Get user greeting
 	userGreeting := getUserGreeting(update.Message.From)
 
+	// Handle greeting directly (pagi, siang, sore, malam, halo, hai, hi, hello)
+	isSimpleGreeting := (strings.Contains(questionLower, "pagi") || strings.Contains(questionLower, "siang") ||
+		strings.Contains(questionLower, "sore") || strings.Contains(questionLower, "malam") ||
+		strings.Contains(questionLower, "halo") || strings.Contains(questionLower, "hai") ||
+		strings.Contains(questionLower, "hi") || strings.Contains(questionLower, "hello")) &&
+		len(strings.Fields(userMessage)) <= 3 // Simple greeting, not a question
+
+	if isSimpleGreeting {
+		loc, _ := time.LoadLocation("Asia/Jakarta")
+		now := time.Now().In(loc)
+		hour := now.Hour()
+
+		var greeting string
+		if hour >= 5 && hour < 12 {
+			greeting = "Pagi"
+		} else if hour >= 12 && hour < 15 {
+			greeting = "Siang"
+		} else if hour >= 15 && hour < 19 {
+			greeting = "Sore"
+		} else {
+			greeting = "Malam"
+		}
+
+		responseMsg := fmt.Sprintf("%s %s! 😊 Waktu saat ini: %s WIB 🕰️ Ada yang bisa dibantu? 🤔", greeting, userGreeting, now.Format("15:04"))
+		if err := SendTelegramMessage(chatID, responseMsg, messageID); err != nil {
+			log.Printf("Error sending greeting response: %v", err)
+		}
+		AddToConversationHistory(userID, "user", userMessage)
+		AddToConversationHistory(userID, "assistant", responseMsg)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	// Get relevant data from database based on question
 	var contextData string
 	if faqType := detectFAQType(userMessage); faqType != "" {
@@ -939,7 +1043,21 @@ PENTING: Panggil user dengan "%s" di awal jawaban. JANGAN campur antara "Kak" da
 
 PENTING BANGET: Kamu HARUS menggunakan bahasa Indonesia yang SANGAT SANTAI, GAUL, dan RILEKS seperti teman ngobrol biasa. JANGAN formal, kaku, atau seperti robot!
 
-PENTING BANGET: Kamu HARUS menggunakan bahasa Indonesia yang SANGAT SANTAI, GAUL, dan RILEKS seperti teman ngobrol biasa. JANGAN formal, kaku, atau seperti robot!
+PENTING TENTANG WAKTU:
+- Kamu HARUS tahu waktu saat ini dalam timezone Asia/Jakarta (WIB)
+- Jika ditanya "jam berapa" atau "waktu sekarang", jawab dengan waktu saat ini dalam format WIB
+- Waktu akan diberikan di context jika ditanya tentang waktu
+- Gunakan format: "Waktu saat ini: HH:MM WIB"
+
+PENTING TENTANG SALAM:
+- Jika user mengirim salam sederhana (pagi, siang, sore, malam, halo, hai, hi, hello), jawab langsung dengan salam yang sesuai berdasarkan waktu saat ini
+- Contoh: Jika jam 10:00 WIB dan user bilang "pagi", jawab "Pagi [nama]! 😊 Waktu saat ini: 10:00 WIB 🕰️ Ada yang bisa dibantu? 🤔"
+- Salam sudah dihandle otomatis, tapi tetap bisa merespons dengan ramah jika ada di konteks percakapan
+
+PENTING TENTANG PREFIX:
+- Prefix bot adalah "Xinxun" atau "Bot" jika tidak ada prefix khusus
+- Jika user menyapa dengan "pagi semua" atau "halo semua", gunakan prefix "Xinxun" atau "Bot"
+- Contoh: "Pagi semua! Xinxun siap membantu! 😊" atau "Halo! Bot Xinxun di sini! 😄"
 
 GAYA KOMUNIKASI (WAJIB DIIKUTI - JANGAN LANGKAHI!):
 - Gunakan bahasa SUPER GAUL dan SANTAI seperti ngobrol dengan teman dekat di WhatsApp
@@ -960,6 +1078,12 @@ INFORMASI PENTING TENTANG XINXUN:
 - Waktu penarikan: Senin-Sabtu, 09:00-17:00 WIB ⏰
 - Cara mendaftar, cara penarikan, cara pembelian (akan diberikan di context)
 - DEPOSIT (PENTING!): Xinxun TIDAK memiliki menu deposit terpisah! Jika user bertanya tentang deposit atau minimal deposit, jelaskan bahwa deposit = investasi langsung. Saat investasi produk, pembayaran dilakukan langsung melalui QRIS/Virtual Account. Tidak ada menu deposit terpisah, tidak ada minimal deposit terpisah - langsung investasi dan bayar sesuai produk yang dipilih.
+- SISTEM VIP & SARAN PRODUK (PENTING!): 
+  * User BARU (VIP 0): Hanya bisa membeli produk ROUTER. Semua produk Router bisa dibeli dari VIP 0 (TIDAK ada requirement VIP untuk Router)
+  * Setelah investasi Router, level VIP otomatis naik sesuai total investasi Router
+  * Setelah level VIP naik, baru bisa membeli produk Mifi sesuai level VIP yang dicapai
+  * Mifi & Powerbank memerlukan level VIP tertentu (tidak bisa dibeli dari VIP 0)
+  * JIKA USER BERTANYA TENTANG DEPOSIT/MINIMAL DEPOSIT/PRODUK YANG HARUS DIAMBIL: TANYA DULU apakah user baru atau sudah pernah investasi. Jika baru, sarankan Router saja. Jika sudah investasi, tanyakan level VIP lalu sarankan produk sesuai level VIP. JANGAN langsung sarankan Mifi/Powerbank tanpa tahu level VIP user!
 - PRODUK ROUTER: Produk router akan diterima oleh member SETELAH KONTRAK BERAKHIR. Profit harian akan tetap berjalan sesuai durasi kontrak, dan router fisik akan dikirim setelah kontrak selesai. 📦
 - PROFIT ROUTER (PENTING!): Untuk produk ROUTER, profit TIDAK masuk setiap hari karena profit terkunci (locked). Profit akan dikembalikan FULL selama durasi kontrak (70 hari) BESERTA modal setelah kontrak 70 hari selesai. Jadi jika member bertanya "kenapa profit saya tidak masuk?" dan mereka membeli router, itu NORMAL karena profit router terkunci dan akan dikembalikan sekaligus setelah kontrak selesai. ⚠️💰
 - KOMISI: Sistem komisi referral 30% dari investasi referral. Unlimited earning, easy start
@@ -983,6 +1107,15 @@ ATURAN PENTING:
 - SEMUA KELUHAN HARUS DIJAWAB: Jika ada keluhan atau masalah dari user, JAWAB dengan ramah dan coba bantu
 - JIKA TIDAK TAHU ATAU TIDAK YAKIN: Arahkan user untuk menghubungi CS dengan tag @xinxun_forindo dengan ramah dan gaul
 - Jangan biarkan keluhan tidak terjawab - selalu respons, meskipun akhirnya mengarahkan ke CS
+
+ATURAN PENTING UNTUK SARAN PRODUK:
+- JIKA USER BERTANYA TENTANG DEPOSIT/MINIMAL DEPOSIT/PRODUK YANG HARUS DIAMBIL DENGAN MODAL TERTENTU:
+  1. TANYA DULU: "Kamu baru di Xinxun atau sudah pernah investasi sebelumnya?"
+  2. JIKA USER BARU (VIP 0): Sarankan produk ROUTER saja. Semua Router bisa dibeli dari VIP 0, tidak ada requirement VIP. Jangan sarankan Mifi/Powerbank!
+  3. JIKA USER SUDAH PERNAH INVESTASI: Tanyakan level VIP mereka, lalu sarankan produk sesuai level VIP yang dicapai
+  4. JANGAN langsung sarankan Mifi/Powerbank tanpa tahu level VIP user - itu salah!
+  5. Router TIDAK memerlukan VIP level - semua Router bisa dibeli dari VIP 0
+  6. Mifi & Powerbank memerlukan level VIP tertentu - tidak bisa dibeli dari VIP 0
 
 CONTOH GAYA JAWABAN YANG BENAR (GAUL, SANTAI, RILEKS):
 - "Wah, pertanyaan bagus nih! 😊 Jadi gini ya..."
