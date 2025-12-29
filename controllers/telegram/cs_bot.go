@@ -247,50 +247,61 @@ func AddToConversationHistory(userID int64, role string, content string) {
 	conversationHistory[userID].LastSeen = time.Now()
 }
 
-// GetFAQResponse tries to match question with FAQ
-func GetFAQResponse(question string) (string, bool) {
+// detectFAQType detects what type of information is being asked
+func detectFAQType(question string) string {
 	question = strings.ToLower(question)
 
-	// FAQ patterns
-	faqs := map[string]string{
-		"harga":             getProductPrices(),
-		"price":             getProductPrices(),
-		"produk":            getProductDetails(),
-		"product":           getProductDetails(),
-		"minimal penarikan": getWithdrawalInfo(),
-		"min penarikan":     getWithdrawalInfo(),
-		"minimal withdraw":  getWithdrawalInfo(),
-		"waktu penarikan":   getWithdrawalTime(),
-		"jam penarikan":     getWithdrawalTime(),
-		"withdrawal time":   getWithdrawalTime(),
-		"cara daftar":       getRegistrationGuide(),
-		"cara mendaftar":    getRegistrationGuide(),
-		"register":          getRegistrationGuide(),
-		"pendaftaran":       getRegistrationGuide(),
-		"cara penarikan":    getWithdrawalGuide(),
-		"cara withdraw":     getWithdrawalGuide(),
-		"withdraw":          getWithdrawalGuide(),
-		"cara beli":         getPurchaseGuide(),
-		"cara pembelian":    getPurchaseGuide(),
-		"beli produk":       getPurchaseGuide(),
-		"pembelian":         getPurchaseGuide(),
+	if strings.Contains(question, "harga") || strings.Contains(question, "price") || strings.Contains(question, "berapa") {
+		return "prices"
+	}
+	if strings.Contains(question, "produk") || strings.Contains(question, "product") || strings.Contains(question, "router") {
+		return "products"
+	}
+	if strings.Contains(question, "minimal penarikan") || strings.Contains(question, "min penarikan") || strings.Contains(question, "minimal withdraw") {
+		return "withdrawal_info"
+	}
+	if strings.Contains(question, "waktu penarikan") || strings.Contains(question, "jam penarikan") || strings.Contains(question, "withdrawal time") {
+		return "withdrawal_time"
+	}
+	if strings.Contains(question, "cara daftar") || strings.Contains(question, "cara mendaftar") || strings.Contains(question, "register") || strings.Contains(question, "pendaftaran") {
+		return "registration"
+	}
+	if strings.Contains(question, "cara penarikan") || strings.Contains(question, "cara withdraw") || strings.Contains(question, "withdraw") {
+		return "withdrawal_guide"
+	}
+	if strings.Contains(question, "cara beli") || strings.Contains(question, "cara pembelian") || strings.Contains(question, "beli produk") || strings.Contains(question, "pembelian") {
+		return "purchase"
 	}
 
-	for keyword, answer := range faqs {
-		if strings.Contains(question, keyword) {
-			return answer, true
-		}
-	}
-
-	return "", false
+	return ""
 }
 
-// getProductPrices returns formatted product prices
-func getProductPrices() string {
+// getContextData retrieves relevant data from database based on FAQ type
+func getContextData(faqType string) string {
+	switch faqType {
+	case "prices", "products":
+		return getProductDataForAI()
+	case "withdrawal_info":
+		return getWithdrawalInfoForAI()
+	case "withdrawal_time":
+		return "Waktu penarikan: Senin-Sabtu, pukul 09:00-17:00 WIB. Penarikan di luar jam tersebut tidak dapat diproses."
+	case "registration":
+		return "Cara mendaftar: 1) Akses https://xinxun.us/register, 2) Isi data diri (nama, nomor telepon, password minimal 6 karakter, kode referral), 3) Klik Daftar. Setelah mendaftar, member akan mendapat bonus pendaftaran Rp2.000."
+	case "withdrawal_guide":
+		return "Cara penarikan: 1) Pastikan saldo mencukupi dan waktu penarikan (Senin-Sabtu, 09:00-17:00 WIB), 2) Buka menu Penarikan, 3) Tambahkan rekening bank jika belum ada, 4) Masukkan jumlah yang ingin ditarik, 5) Pilih rekening tujuan, 6) Konfirmasi. Penarikan hanya dapat dilakukan 1 kali per hari."
+	case "purchase":
+		return "Cara membeli produk: 1) Buka aplikasi Xinxun, 2) Pilih menu Produk/Investasi, 3) Pilih produk yang ingin dibeli, 4) Baca detail produk (harga, profit, durasi), 5) Pilih metode pembayaran, 6) Klik Konfirmasi, 7) Lakukan pembayaran sesuai instruksi. Setelah pembayaran berhasil, produk akan otomatis berjalan sesuai durasi."
+	default:
+		return ""
+	}
+}
+
+// getProductDataForAI returns product data formatted for AI context
+func getProductDataForAI() string {
 	db := database.DB
 	var products []models.Product
-	if err := db.Where("status = ?", "Active").Preload("Category").Find(&products).Error; err != nil {
-		return "Maaf, saya tidak dapat mengakses informasi produk saat ini."
+	if err := db.Where("status = ?", "Active").Preload("Category").Order("category_id ASC, id ASC").Find(&products).Error; err != nil {
+		return "Tidak dapat mengakses data produk saat ini."
 	}
 
 	if len(products) == 0 {
@@ -298,134 +309,55 @@ func getProductPrices() string {
 	}
 
 	var response strings.Builder
-	response.WriteString("📦 <b>Daftar Produk & Harga:</b>\n\n")
+	response.WriteString("DAFTAR PRODUK XINXUN:\n\n")
 
+	// Group by category
+	categoryMap := make(map[string][]models.Product)
 	for _, product := range products {
-		categoryName := "N/A"
+		categoryName := "Umum"
 		if product.Category != nil {
 			categoryName = product.Category.Name
 		}
+		categoryMap[categoryName] = append(categoryMap[categoryName], product)
+	}
 
-		response.WriteString(fmt.Sprintf("• <b>%s</b> (%s)\n", product.Name, categoryName))
-		response.WriteString(fmt.Sprintf("  💰 Harga: Rp%.0f\n", product.Amount))
-		response.WriteString(fmt.Sprintf("  📈 Profit Harian: Rp%.0f\n", product.DailyProfit))
-		response.WriteString(fmt.Sprintf("  ⏱ Durasi: %d hari\n", product.Duration))
-		if product.RequiredVIP > 0 {
-			response.WriteString(fmt.Sprintf("  ⭐ VIP Level: %d\n", product.RequiredVIP))
+	for categoryName, prods := range categoryMap {
+		response.WriteString(fmt.Sprintf("Kategori: %s\n", categoryName))
+		for _, product := range prods {
+			response.WriteString(fmt.Sprintf("- %s: Harga Rp%.0f, Profit Harian Rp%.0f, Durasi %d hari",
+				product.Name, product.Amount, product.DailyProfit, product.Duration))
+			if product.RequiredVIP > 0 {
+				response.WriteString(fmt.Sprintf(", VIP Level %d", product.RequiredVIP))
+			}
+			if product.PurchaseLimit > 0 {
+				response.WriteString(fmt.Sprintf(", Batas Pembelian %d kali", product.PurchaseLimit))
+			}
+			response.WriteString("\n")
 		}
 		response.WriteString("\n")
 	}
 
-	return response.String()
-}
-
-// getProductDetails returns detailed product information
-func getProductDetails() string {
-	db := database.DB
-	var products []models.Product
-	if err := db.Where("status = ?", "Active").Preload("Category").Find(&products).Error; err != nil {
-		return "Maaf, saya tidak dapat mengakses informasi produk saat ini."
-	}
-
-	if len(products) == 0 {
-		return "Belum ada produk yang tersedia."
-	}
-
-	var response strings.Builder
-	response.WriteString("📋 <b>Detail Produk:</b>\n\n")
-
-	for _, product := range products {
-		categoryName := "N/A"
-		profitType := "Unlocked"
-		if product.Category != nil {
-			categoryName = product.Category.Name
-			profitType = product.Category.ProfitType
-		}
-
-		response.WriteString(fmt.Sprintf("🔹 <b>%s</b>\n", product.Name))
-		response.WriteString(fmt.Sprintf("   Kategori: %s\n", categoryName))
-		response.WriteString(fmt.Sprintf("   Harga: Rp%.0f\n", product.Amount))
-		response.WriteString(fmt.Sprintf("   Profit Harian: Rp%.0f\n", product.DailyProfit))
-		response.WriteString(fmt.Sprintf("   Durasi: %d hari\n", product.Duration))
-		response.WriteString(fmt.Sprintf("   Tipe Profit: %s\n", profitType))
-		if product.RequiredVIP > 0 {
-			response.WriteString(fmt.Sprintf("   VIP Level Diperlukan: %d\n", product.RequiredVIP))
-		}
-		if product.PurchaseLimit > 0 {
-			response.WriteString(fmt.Sprintf("   Batas Pembelian: %d kali\n", product.PurchaseLimit))
-		}
-		response.WriteString("\n")
-	}
+	// Add router information
+	response.WriteString("INFO PENTING PRODUK ROUTER:\n")
+	response.WriteString("Produk router akan diterima oleh member SETELAH KONTRAK BERAKHIR. Profit harian akan tetap berjalan sesuai durasi kontrak, dan router fisik akan dikirim setelah kontrak selesai.\n")
 
 	return response.String()
 }
 
-// getWithdrawalInfo returns minimum withdrawal information
-func getWithdrawalInfo() string {
+// getWithdrawalInfoForAI returns withdrawal information formatted for AI context
+func getWithdrawalInfoForAI() string {
 	sqlDB, err := database.DB.DB()
 	if err != nil {
-		return "Maaf, saya tidak dapat mengakses informasi penarikan saat ini."
+		return "Tidak dapat mengakses informasi penarikan saat ini."
 	}
 
 	setting, err := models.GetSetting(sqlDB)
 	if err != nil {
-		return "Maaf, saya tidak dapat mengakses informasi penarikan saat ini."
+		return "Tidak dapat mengakses informasi penarikan saat ini."
 	}
 
-	return fmt.Sprintf("💰 <b>Informasi Penarikan:</b>\n\n"+
-		"• Minimal Penarikan: Rp%.0f\n"+
-		"• Maksimal Penarikan: Rp%.0f\n"+
-		"• Biaya Admin: Rp%.0f\n\n"+
-		"💡 Penarikan hanya dapat dilakukan pada hari Senin-Sabtu, pukul 09:00-17:00 WIB.",
+	return fmt.Sprintf("INFORMASI PENARIKAN:\n- Minimal Penarikan: Rp%.0f\n- Maksimal Penarikan: Rp%.0f\n- Biaya Admin: Rp%.0f\n- Waktu: Senin-Sabtu, 09:00-17:00 WIB\n- Batas: 1 kali penarikan per hari",
 		setting.MinWithdraw, setting.MaxWithdraw, setting.WithdrawCharge)
-}
-
-// getWithdrawalTime returns withdrawal time information
-func getWithdrawalTime() string {
-	return "⏰ <b>Waktu Penarikan:</b>\n\n" +
-		"• Hari: Senin - Sabtu\n" +
-		"• Jam: 09:00 - 17:00 WIB\n\n" +
-		"⚠️ Penarikan di luar jam tersebut tidak dapat diproses."
-}
-
-// getRegistrationGuide returns registration guide
-func getRegistrationGuide() string {
-	return "📝 <b>Cara Mendaftar:</b>\n\n" +
-		"1. Akses https://xinxun.us/register pada browser Anda\n" +
-		"2. Buka aplikasi dan pilih \"Daftar\"\n" +
-		"3. Isi data diri:\n" +
-		"   • Nama lengkap\n" +
-		"   • Nomor telepon\n" +
-		"   • Password (minimal 6 karakter)\n" +
-		"   • Kode referral (gunakan kode referral teman Anda, atau gunakan XINXUN jika tidak ada kode referral teman Anda)\n" +
-		"4. Klik \"Daftar\" dan selesai!\n\n" +
-		"💡 Setelah mendaftar, Anda akan mendapat bonus pendaftaran sebesar Rp2.000"
-}
-
-// getWithdrawalGuide returns withdrawal guide
-func getWithdrawalGuide() string {
-	return "💸 <b>Cara Melakukan Penarikan:</b>\n\n" +
-		"1. Pastikan saldo Anda mencukupi (minimal sesuai ketentuan)\n" +
-		"2. Pastikan waktu penarikan (Senin-Sabtu, 09:00-17:00 WIB)\n" +
-		"3. Buka menu \"Penarikan\" di aplikasi\n" +
-		"4. Tambahkan rekening bank jika belum ada\n" +
-		"5. Masukkan jumlah yang ingin ditarik\n" +
-		"6. Pilih rekening tujuan\n" +
-		"7. Konfirmasi penarikan\n\n" +
-		"⚠️ Penarikan hanya dapat dilakukan 1 kali per hari"
-}
-
-// getPurchaseGuide returns purchase guide
-func getPurchaseGuide() string {
-	return "🛒 <b>Cara Membeli Produk:</b>\n\n" +
-		"1. Buka aplikasi Xinxun\n" +
-		"2. Pilih menu \"Produk\" atau \"Investasi\"\n" +
-		"3. Pilih produk yang ingin dibeli\n" +
-		"4. Baca detail produk (harga, profit, durasi)\n" +
-		"5. Pilih metode pembayaran yang tersedia\n" +
-		"6. Klik \"Konfirmasi\"\n" +
-		"7. Lakukan pembayaran sesuai instruksi yang diberikan\n\n" +
-		"💡 Setelah pembayaran berhasil, produk Anda akan otomatis berjalan sesuai durasi produk"
 }
 
 // CSBotWebhookHandler handles Telegram webhook updates
@@ -455,43 +387,118 @@ func CSBotWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	chatID := update.Message.Chat.ID
 	messageID := update.Message.MessageID
 
-	// Try FAQ first
-	if faqResponse, found := GetFAQResponse(userMessage); found {
-		if err := SendTelegramMessage(chatID, faqResponse, messageID); err != nil {
-			log.Printf("Error sending FAQ response: %v", err)
+	// Get conversation history
+	history := GetConversationHistory(userID)
+
+	// Check if question is related to Xinxun or daily conversation
+	questionLower := strings.ToLower(userMessage)
+	isXinxunRelated := strings.Contains(questionLower, "xinxun") ||
+		strings.Contains(questionLower, "produk") ||
+		strings.Contains(questionLower, "harga") ||
+		strings.Contains(questionLower, "penarikan") ||
+		strings.Contains(questionLower, "withdraw") ||
+		strings.Contains(questionLower, "daftar") ||
+		strings.Contains(questionLower, "register") ||
+		strings.Contains(questionLower, "beli") ||
+		strings.Contains(questionLower, "investasi") ||
+		strings.Contains(questionLower, "router") ||
+		strings.Contains(questionLower, "profit") ||
+		strings.Contains(questionLower, "saldo") ||
+		strings.Contains(questionLower, "bonus") ||
+		strings.Contains(questionLower, "vip") ||
+		strings.Contains(questionLower, "kontrak") ||
+		strings.Contains(questionLower, "durasi") ||
+		strings.Contains(questionLower, "cara") ||
+		strings.Contains(questionLower, "bagaimana") ||
+		strings.Contains(questionLower, "apa") ||
+		strings.Contains(questionLower, "kapan") ||
+		strings.Contains(questionLower, "dimana") ||
+		strings.Contains(questionLower, "kenapa") ||
+		strings.Contains(questionLower, "mengapa") ||
+		strings.Contains(questionLower, "halo") ||
+		strings.Contains(questionLower, "hai") ||
+		strings.Contains(questionLower, "hi") ||
+		strings.Contains(questionLower, "hello") ||
+		strings.Contains(questionLower, "pagi") ||
+		strings.Contains(questionLower, "siang") ||
+		strings.Contains(questionLower, "sore") ||
+		strings.Contains(questionLower, "malam") ||
+		strings.Contains(questionLower, "terima kasih") ||
+		strings.Contains(questionLower, "makasih") ||
+		strings.Contains(questionLower, "thanks")
+
+	// If not related to Xinxun or daily conversation, politely decline
+	if !isXinxunRelated {
+		declineMsg := "Maaf ya 😅 Saya hanya bisa membantu tentang Xinxun atau obrolan ringan aja. Kalau ada pertanyaan tentang Xinxun, investasi, produk, penarikan, atau hal lain yang berhubungan, silakan tanya aja! 😊"
+		if err := SendTelegramMessage(chatID, declineMsg, messageID); err != nil {
+			log.Printf("Error sending decline message: %v", err)
 		}
 		AddToConversationHistory(userID, "user", userMessage)
-		AddToConversationHistory(userID, "assistant", faqResponse)
+		AddToConversationHistory(userID, "assistant", declineMsg)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	// Get conversation history
-	history := GetConversationHistory(userID)
+	// Get relevant data from database based on question
+	var contextData string
+	if faqType := detectFAQType(userMessage); faqType != "" {
+		contextData = getContextData(faqType)
+	}
 
-	// Build system prompt
+	// Build system prompt with updated style
 	systemPrompt := `Kamu adalah customer service bot untuk aplikasi Xinxun, sebuah platform investasi. 
-Kamu adalah CS yang ramah, membantu, dan selalu siap membantu member di grup chat.
+Kamu adalah CS yang SUPER RAMAH, GAUL, dan selalu siap membantu member! 🎉
 
-Gaya komunikasi:
-- Gunakan bahasa Indonesia yang santai dan asik namun profesional
-- Ramah dan hangat seperti teman yang membantu
-- Bisa merespons berbagai jenis percakapan (pertanyaan, obrolan ringan, dll)
-- Jika ada yang mengobrol atau bercanda, ikuti dengan ramah tapi tetap fokus pada topik Xinxun
-- Jika ada pertanyaan serius tentang Xinxun, jawab dengan detail dan jelas
+PENTING: Kamu HARUS menggunakan bahasa Indonesia yang SANGAT SANTAI dan GAUL seperti teman ngobrol biasa. Jangan formal atau kaku!
 
-Informasi yang bisa kamu berikan:
-- Harga produk dan detail produk
-- Minimal dan maksimal penarikan
-- Waktu penarikan (Senin-Sabtu, 09:00-17:00 WIB)
-- Cara mendaftar
-- Cara melakukan penarikan
-- Cara melakukan pembelian produk
-- Informasi umum tentang Xinxun
+GAYA KOMUNIKASI (WAJIB DIIKUTI):
+- Gunakan bahasa GAUL dan SANTAI seperti ngobrol dengan teman dekat
+- Pakai kata-kata seperti: "nih", "ya", "gitu", "banget", "sih", "dong", "deh", "kayak", "gimana", "gini", dll
+- Pakai EMOJI yang banyak dan relevan untuk membuat chat lebih hidup dan friendly 😊🎉💪🔥✨
+- Ramah, hangat, dan enak diajak ngobrol seperti teman
+- Bisa merespons berbagai jenis percakapan (pertanyaan serius, obrolan ringan, candaan, dll)
+- Jika ada yang mengobrol atau bercanda, ikuti dengan ramah dan asik
+- Jika ada pertanyaan serius tentang Xinxun, jawab dengan detail tapi tetap santai dan gaul
+- JANGAN gunakan bahasa formal atau kaku seperti "dengan hormat", "terima kasih atas", dll
+- Gunakan bahasa yang natural dan mengalir seperti manusia beneran
 
-Jika tidak tahu jawabannya atau butuh informasi lebih detail, arahkan user untuk menghubungi admin melalui link CS yang tersedia.
+INFORMASI PENTING TENTANG XINXUN:
+- Harga produk dan detail produk (akan diberikan di context)
+- Minimal dan maksimal penarikan (akan diberikan di context)
+- Waktu penarikan: Senin-Sabtu, 09:00-17:00 WIB ⏰
+- Cara mendaftar, cara penarikan, cara pembelian (akan diberikan di context)
+- PRODUK ROUTER: Produk router akan diterima oleh member SETELAH KONTRAK BERAKHIR. Jadi profit harian akan tetap berjalan sesuai durasi kontrak, dan router fisik akan dikirim setelah kontrak selesai. 📦
 
-Jawab dengan singkat, jelas, dan ramah. Maksimal 3-4 kalimat per respons agar tidak terlalu panjang.`
+ATURAN PENTING:
+- HANYA jawab pertanyaan tentang Xinxun, investasi, produk, atau obrolan ringan sehari-hari
+- Jika ditanya di luar konteks Xinxun, minta maaf dengan ramah dan gaul, lalu arahkan ke topik Xinxun
+- Gunakan data yang diberikan di context untuk merangkai jawaban dengan natural dan gaul
+- Jawab dengan singkat, jelas, dan asik. Maksimal 3-4 kalimat per respons
+- SELALU gunakan emoji yang relevan (minimal 1-2 emoji per pesan) untuk membuat chat lebih friendly
+- Jika tidak tahu jawabannya, arahkan user dengan ramah dan gaul untuk menghubungi admin
+
+CONTOH GAYA JAWABAN YANG BENAR (GAUL & RAMAH):
+- "Wah, pertanyaan bagus nih! 😊 Jadi gini ya..."
+- "Oke, saya jelasin ya! 📝 Jadi..."
+- "Halo! Ada yang bisa saya bantu? 😄"
+- "Wah, maaf ya, saya cuma bisa bantu tentang Xinxun aja nih 😅"
+- "Oke oke, gini nih caranya..."
+- "Wah keren nih pertanyaannya! Jadi..."
+- "Hmm, gini ya penjelasannya..."
+- "Nah, jadi gini nih..."
+
+CONTOH YANG SALAH (JANGAN DILAKUKAN):
+- "Dengan hormat, saya akan menjelaskan..." ❌
+- "Terima kasih atas pertanyaan Anda..." ❌
+- "Saya akan membantu Anda dengan senang hati..." ❌
+- Jawaban formal dan kaku ❌
+
+Ingat: Kamu adalah CS yang SUPER ASIK, RAMAH, GAUL, dan selalu siap membantu dengan gaya bahasa santai dan gaul seperti teman ngobrol! Jangan kaku atau formal! 🚀✨`
+
+	// Add context data to system prompt if available
+	if contextData != "" {
+		systemPrompt += "\n\nDATA KONTEKS (Gunakan data ini untuk merangkai jawaban dengan natural dan santai):\n" + contextData
+	}
 
 	// Add user message to history
 	messages := append(history, utils.GroqMessage{
