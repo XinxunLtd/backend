@@ -409,7 +409,15 @@ func getContextData(faqType string) string {
 	case "profit_router":
 		return getProfitRouterInfo()
 	case "deposit":
-		return "Xinxun TIDAK memiliki menu deposit terpisah. Saat Anda melakukan investasi, pembayaran dilakukan langsung melalui QRIS/Virtual Account. Jadi untuk deposit, Anda cukup melakukan investasi produk dan membayar sesuai instruksi yang diberikan."
+		return `PENTING: Xinxun TIDAK memiliki menu deposit terpisah!
+
+Cara "deposit" di Xinxun:
+- Saat Anda melakukan investasi produk, pembayaran dilakukan langsung melalui QRIS/Virtual Account
+- Tidak ada menu deposit terpisah - langsung investasi dan bayar
+- Tidak ada biaya deposit tambahan
+- Minimal investasi sesuai dengan produk yang dipilih
+
+Jadi jika user bertanya tentang deposit atau minimal deposit, arahkan ke investasi produk. Deposit = Investasi langsung dengan pembayaran QRIS/VA.`
 	case "commission":
 		return getCommissionInfo()
 	case "vip":
@@ -452,7 +460,7 @@ func getProductDataForAI() string {
 	}
 
 	var response strings.Builder
-	response.WriteString("DAFTAR PRODUK XINXUN:\n\n")
+	response.WriteString("<b>Daftar Produk Xinxun</b> 📦\n\n")
 
 	// Group by category
 	categoryMap := make(map[string][]models.Product)
@@ -465,9 +473,9 @@ func getProductDataForAI() string {
 	}
 
 	for categoryName, prods := range categoryMap {
-		response.WriteString(fmt.Sprintf("Kategori: %s\n", categoryName))
+		response.WriteString(fmt.Sprintf("<b>Kategori: %s</b>\n", categoryName))
 		for _, product := range prods {
-			response.WriteString(fmt.Sprintf("- %s: Harga Rp%.0f, Profit Harian Rp%.0f, Durasi %d hari",
+			response.WriteString(fmt.Sprintf("- <b>%s</b>: Harga Rp%.0f, Profit Harian Rp%.0f, Durasi %d hari",
 				product.Name, product.Amount, product.DailyProfit, product.Duration))
 			if product.RequiredVIP > 0 {
 				response.WriteString(fmt.Sprintf(", VIP Level %d", product.RequiredVIP))
@@ -481,9 +489,9 @@ func getProductDataForAI() string {
 	}
 
 	// Add router information
-	response.WriteString("INFO PENTING PRODUK ROUTER:\n")
+	response.WriteString("<b>Info Penting Produk Router</b> 📦\n")
 	response.WriteString("Produk router akan diterima oleh member SETELAH KONTRAK BERAKHIR. Profit harian akan tetap berjalan sesuai durasi kontrak, dan router fisik akan dikirim setelah kontrak selesai.\n")
-	response.WriteString("\nSISTEM PROFIT ROUTER (PENTING!):\n")
+	response.WriteString("\n<b>Sistem Profit Router (Penting!)</b> ⚠️💰\n")
 	response.WriteString("- Untuk produk ROUTER, profit TIDAK masuk setiap hari (profit terkunci/locked)\n")
 	response.WriteString("- Profit akan dikembalikan FULL selama durasi kontrak (70 hari) BESERTA modal setelah kontrak 70 hari selesai\n")
 	response.WriteString("- Jadi jika member membeli router dan profit tidak masuk, itu NORMAL karena profit router terkunci dan akan dikembalikan sekaligus setelah kontrak selesai\n")
@@ -493,114 +501,114 @@ func getProductDataForAI() string {
 
 // getProfitRouterInfo returns information about router profit system
 func getProfitRouterInfo() string {
-	return `INFORMASI PENTING TENTANG PROFIT ROUTER:
+	return `<b>Informasi Penting Tentang Profit Router</b> ⚠️💰
 
-PERTANYAAN YANG SERING DITANYAKAN: "Kenapa profit saya tidak masuk?"
+<b>Pertanyaan yang Sering Ditanyakan:</b> "Kenapa profit saya tidak masuk?"
 
-JAWABAN:
+<b>Jawaban:</b>
 Jika Anda membeli produk ROUTER, profit TIDAK akan masuk setiap hari karena profit router TERKUNCI (LOCKED).
 
-SISTEM PROFIT ROUTER:
+<b>Sistem Profit Router:</b>
 - Profit router TIDAK masuk setiap hari (profit terkunci/locked)
 - Profit akan dikembalikan FULL selama durasi kontrak (70 hari) BESERTA modal setelah kontrak 70 hari selesai
 - Jadi total yang akan diterima = Modal + (Profit Harian × 70 hari)
 - Router fisik juga akan dikirim setelah kontrak selesai
 
-JADI JIKA MEMBER BERTANYA "KENAPA PROFIT SAYA TIDAK MASUK?":
+<b>Jadi jika member bertanya "Kenapa profit saya tidak masuk?":</b>
 - Cek dulu apakah mereka membeli produk ROUTER
 - Jika iya, jelaskan bahwa itu NORMAL karena profit router terkunci
 - Profit akan dikembalikan sekaligus setelah kontrak 70 hari selesai beserta modal
 - Router fisik juga akan dikirim setelah kontrak selesai
 
-CATATAN: Hanya produk ROUTER yang memiliki sistem profit terkunci. Produk lain profit masuk setiap hari seperti biasa.`
+<b>Catatan:</b> Hanya produk ROUTER yang memiliki sistem profit terkunci. Produk lain profit masuk setiap hari seperti biasa.`
 }
 
 // getCommissionInfo returns information about referral commission
 func getCommissionInfo() string {
-	return `SISTEM KOMISI REFERRAL XINXUN:
+	return `<b>Sistem Komisi Referral Xinxun</b> 💰
 
-Komisi Instan:
+<b>Komisi Instan:</b>
 - Dapatkan 30% komisi langsung saat referral Anda melakukan investasi
 - Contoh: Jika referral investasi Rp100.000, Anda dapat komisi Rp30.000
 
-Unlimited Earning:
+<b>Unlimited Earning:</b>
 - Tidak ada batas maksimal penghasilan dari program referral
 - Semakin banyak referral yang invest, semakin besar komisi yang didapat
 
-Easy Start:
+<b>Easy Start:</b>
 - Cukup bagikan kode atau link referral
 - Tidak perlu investasi tambahan untuk mulai mendapatkan komisi
 
-Cara menggunakan:
-- Akses https://xinxun.us/referral untuk melihat kode referral dan link
+<b>Cara menggunakan:</b>
+- Akses <a href="https://xinxun.us/referral">https://xinxun.us/referral</a> untuk melihat kode referral dan link
 - Bagikan kode atau link ke teman
 - Setelah teman investasi, komisi langsung masuk ke saldo Anda`
 }
 
 // getVIPInfo returns information about VIP levels
 func getVIPInfo() string {
-	return `LEVEL VIP XINXUN:
+	return `<b>Level VIP Xinxun</b> ⭐
 
-VIP 0 (Basic) - Saat Ini:
+<b>VIP 0 (Basic)</b> - Saat Ini:
 - Akses produk Router
 - Investasi dengan aman
 - Investasi tanpa batas
 
-VIP 1 (Bronze) - Target: Rp 50.000:
+<b>VIP 1 (Bronze)</b> - Target: Rp 50.000:
 - Semua benefit VIP 0
 - Membuka Mifi 1
 - Profit hingga 140%
 
-VIP 2 (Silver) - Target: Rp 1.200.000:
+<b>VIP 2 (Silver)</b> - Target: Rp 1.200.000:
 - Semua benefit VIP 1
 - Membuka Mifi 2
 - Profit hingga 210%
 
-VIP 3 (Gold) - Target: Rp 7.000.000:
+<b>VIP 3 (Gold)</b> - Target: Rp 7.000.000:
 - Semua benefit VIP 2
 - Membuka Mifi 3
 - Membuka semua produk Powerbank
 - Profit hingga 235%
 
-VIP 4 (Platinum) - Target: Rp 30.000.000:
+<b>VIP 4 (Platinum)</b> - Target: Rp 30.000.000:
 - Semua benefit VIP 3
 - Membuka Mifi 4
 - Profit hingga 280%
 
-VIP 5 (Ultimate) - Target: Rp 150.000.000:
+<b>VIP 5 (Ultimate)</b> - Target: Rp 150.000.000:
 - Semua benefit VIP 4
 - Semua produk tersedia
 
-CARA NAIK LEVEL VIP:
+<b>Cara Naik Level VIP:</b>
 - Investasi pada produk Router menaikkan level VIP
 - Produk Router dengan profit terkunci yang menaikkan level VIP
 - Mifi & Powerbank TIDAK menaikkan level VIP (profit langsung)
 
-Tips: Investasi Router memberikan return total saat selesai dan menaikkan level VIP. Semakin tinggi level, semakin banyak produk eksklusif!`
+💡 <b>Tips:</b> Investasi Router memberikan return total saat selesai dan menaikkan level VIP. Semakin tinggi level, semakin banyak produk eksklusif!`
 }
 
 // getEventInfo returns information about social media event
 func getEventInfo() string {
-	return `EVENT UPLOAD SOSMED XINXUN:
+	return `<b>Event Upload Sosmed Xinxun</b> 🎬
 
-Raih Hadiah Fantastis!
+<b>Raih Hadiah Fantastis!</b>
 
 Buat konten promosi XinXun di TikTok & YouTube, raih views, dan claim hadiahnya!
 
-HADIAH:
+<b>Hadiah:</b>
 - 20K views = Rp 100.000
 - 50K views = Rp 300.000
 - 100K views = Rp 700.000
 - 250K views = Rp 1.000.000
 - 500K views = Rp 2.000.000
 
-SYARAT & KETENTUAN:
+<b>Syarat & Ketentuan:</b>
 - Video original berkualitas HD, tanpa re-upload
 - Dilarang menggunakan BOT atau fake views
 - Wajib mencantumkan link referral di bio/deskripsi
 - Hadiah akan ditambahkan langsung ke saldo akun
 
-CARA MENGAJUKAN CLAIM HADIAH:
+<b>Cara Mengajukan Claim Hadiah:</b>
 Chat CS dengan tag @xinxun_forindo untuk mengajukan claim hadiah setelah mencapai target views`
 }
 
@@ -631,7 +639,7 @@ func getNewsInfo() string {
 	}
 
 	var response strings.Builder
-	response.WriteString("BERITA TERBARU XINXUN (Top 3):\n\n")
+	response.WriteString("<b>Berita Terbaru Xinxun (Top 3)</b> 📰\n\n")
 
 	// Show top 3 news
 	maxNews := 3
@@ -641,12 +649,12 @@ func getNewsInfo() string {
 
 	for i := 0; i < maxNews; i++ {
 		news := newsResponse.Data[i]
-		response.WriteString(fmt.Sprintf("%d. %s\n", i+1, news.Title))
-		response.WriteString(fmt.Sprintf("   %s\n", news.Excerpt))
-		response.WriteString(fmt.Sprintf("   Link: %s\n\n", news.Href))
+		response.WriteString(fmt.Sprintf("<b>%d. %s</b>\n", i+1, news.Title))
+		response.WriteString(fmt.Sprintf("%s\n", news.Excerpt))
+		response.WriteString(fmt.Sprintf("<a href=\"%s\">Baca selengkapnya</a>\n\n", news.Href))
 	}
 
-	response.WriteString("Untuk berita lainnya, kunjungi: https://news.xinxun.us")
+	response.WriteString("Untuk berita lainnya, kunjungi: <a href=\"https://news.xinxun.us\">https://news.xinxun.us</a>")
 
 	return response.String()
 }
@@ -664,101 +672,101 @@ func getTaskInfo() string {
 	}
 
 	var response strings.Builder
-	response.WriteString("DAFTAR TUGAS XINXUN:\n\n")
+	response.WriteString("<b>Daftar Tugas Xinxun</b> 📋\n\n")
 
 	for _, task := range tasks {
-		response.WriteString(fmt.Sprintf("- %s\n", task.Name))
+		response.WriteString(fmt.Sprintf("- <b>%s</b>\n", task.Name))
 		response.WriteString(fmt.Sprintf("  Hadiah: Rp%.0f\n", task.Reward))
 		response.WriteString(fmt.Sprintf("  Level Diperlukan: %d\n", task.RequiredLevel))
 		response.WriteString(fmt.Sprintf("  Member Aktif Diperlukan: %d\n\n", task.RequiredActiveMembers))
 	}
 
-	response.WriteString("Akses https://xinxun.us/referral untuk melihat detail dan claim tugas.")
+	response.WriteString("Akses <a href=\"https://xinxun.us/referral\">https://xinxun.us/referral</a> untuk melihat detail dan claim tugas.")
 
 	return response.String()
 }
 
 // getSpinInfo returns information about spin wheel
 func getSpinInfo() string {
-	return `SPIN WHEEL BERHADIAH XINXUN:
+	return `<b>Spin Wheel Berhadiah Xinxun</b> 🎰
 
-Cara Dapat Tiket Spin:
+<b>Cara Dapat Tiket Spin:</b>
 - Lakukan investasi
 - Undang teman untuk mendapatkan tiket spin gratis
 - Setelah teman investasi di atas Rp100.000, dapatkan tiket spin
 
-Hadiah Spin:
+<b>Hadiah Spin:</b>
 - Berbagai hadiah menarik tersedia
 - Hadiah langsung masuk ke saldo akun setelah menang
 
-Akses https://xinxun.us/spin-wheel untuk bermain spin wheel dan lihat daftar hadiah yang tersedia!`
+Akses <a href="https://xinxun.us/spin-wheel">https://xinxun.us/spin-wheel</a> untuk bermain spin wheel dan lihat daftar hadiah yang tersedia!`
 }
 
 // getAboutXinxun returns information about Xinxun
 func getAboutXinxun() string {
-	return `TENTANG XINXUN:
+	return `<b>Tentang Xinxun</b> 🏢
 
-#1 Investasi Properti di Indonesia
+<b>#1 Investasi Properti di Indonesia</b>
 
-Latar Belakang XinXun:
+<b>Latar Belakang XinXun:</b>
 XinXun adalah platform investasi yang berpusat di Kota Dongguan, Tiongkok. Didirikan oleh XinXun, Ltd dengan visi dan misi menciptakan akses investasi properti premium bagi semua kalangan.
 
 Platform ini lahir untuk menghapus hambatan tradisional dalam kepemilikan properti, sehingga investor lokal dapat berpartisipasi dengan modal yang lebih terjangkau namun tetap mendapatkan potensi keuntungan yang signifikan.
 
-Tujuan Pendirian:
+<b>Tujuan Pendirian:</b>
 - Memperluas Akses Investasi: Memberikan kesempatan bagi investor di Indonesia untuk memiliki bagian dari properti strategis
 - Meningkatkan Likuiditas: Proses investasi yang cepat dan fleksibel, memungkinkan keluar-masuk investasi dengan mudah
 - Transparansi & Efisiensi: Laporan kinerja berkala untuk memantau perkembangan aset secara jelas
 - Keamanan & Kepatuhan: Mematuhi regulasi investasi internasional dan menerapkan sistem keamanan yang ketat
 
-Nilai Utama:
+<b>Nilai Utama:</b>
 - Akses Global: Terbuka untuk investor dari berbagai negara
 - Kualitas Aset Premium: Fokus pada properti bernilai tinggi dengan prospek pertumbuhan
 - Manajemen Profesional: Dikelola oleh tim berpengalaman di bidang investasi digital dan keuangan
 - Inklusif: Membuka peluang investasi bagi siapa saja, tanpa batasan latar belakang
 
-Kesimpulan:
+<b>Kesimpulan:</b>
 XinXun hadir untuk menjadi penghubung antara pasar properti kelas atas dan investor lokal. Dengan pengelolaan yang profesional, transparansi penuh, serta komitmen pada keamanan, kami menciptakan peluang investasi yang aman, menguntungkan, dan dapat diakses oleh semua kalangan.
 
-Sertifikat Legal:
+<b>Sertifikat Legal:</b>
 Sertifikat Konformitas - Nomor: ECT2019E05006
 
-Akses https://xinxun.us/about-us untuk informasi lengkap.`
+Akses <a href="https://xinxun.us/about-us">https://xinxun.us/about-us</a> untuk informasi lengkap.`
 }
 
 // getLicenseInfo returns information about licenses
 func getLicenseInfo() string {
-	return `LISENSI & REGULASI XINXUN:
+	return `<b>Lisensi & Regulasi Xinxun</b> 🌍
 
 XinXun beroperasi dengan lisensi dan regulasi resmi di berbagai negara:
 
-INDONESIA:
+<b>Indonesia:</b>
 - Otoritas Jasa Keuangan: PT Xdana Investa Indonesia
 - Kementerian Komunikasi dan Digital: Xinxun, Ltd
 
-CHINA:
+<b>China:</b>
 - China Securities Regulatory Commission: Xinxun, Ltd
 
-HONGKONG:
+<b>Hongkong:</b>
 - Securities and Futures Commission: Xinxun Limited
 
-SINGAPORE:
+<b>Singapore:</b>
 - Monetary Authority of Singapore: Xinxun SG, Ltd
 - Government of Singapore Investment Corporation: Xinxun SG, Ltd
 
-MALAYSIA:
+<b>Malaysia:</b>
 - Securities Commission Malaysia: Xinxun PLT
 
-PHILIPPINES:
+<b>Philippines:</b>
 - Securities and Exchange Commission: Xinxun, Inc
 
-THAILAND:
+<b>Thailand:</b>
 - Securities and Exchange Commission: Xinxun Thai, Ltd
 
-VIETNAM:
+<b>Vietnam:</b>
 - Ministry of Planning and Investment: Xinxun Company
 
-Akses https://xinxun.us/licenses untuk informasi lengkap tentang lisensi.`
+Akses <a href="https://xinxun.us/licenses">https://xinxun.us/licenses</a> untuk informasi lengkap tentang lisensi. 📄`
 }
 
 // isValidName checks if a name looks like a real person's name
@@ -815,7 +823,8 @@ func getUserGreeting(user *struct {
 		return "Kak " + firstName
 	}
 
-	return "Kaka"
+	// Always use "Bro" if name is not valid, not "Kaka"
+	return "Bro"
 }
 
 // getWithdrawalInfoForAI returns withdrawal information formatted for AI context
@@ -830,7 +839,7 @@ func getWithdrawalInfoForAI() string {
 		return "Tidak dapat mengakses informasi penarikan saat ini."
 	}
 
-	return fmt.Sprintf("INFORMASI PENARIKAN:\n- Minimal Penarikan: Rp%.0f\n- Maksimal Penarikan: Rp%.0f\n- Biaya Admin: Rp%.0f\n- Waktu: Senin-Sabtu, 09:00-17:00 WIB\n- Batas: 1 kali penarikan per hari",
+	return fmt.Sprintf("<b>Informasi Penarikan</b> 💸\n- Minimal Penarikan: Rp%.0f\n- Maksimal Penarikan: Rp%.0f\n- Biaya Admin: Rp%.0f\n- Waktu: Senin-Sabtu, 09:00-17:00 WIB\n- Batas: 1 kali penarikan per hari",
 		setting.MinWithdraw, setting.MaxWithdraw, setting.WithdrawCharge)
 }
 
@@ -926,7 +935,7 @@ func CSBotWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	systemPrompt := fmt.Sprintf(`Kamu adalah customer service bot untuk aplikasi Xinxun, sebuah platform investasi. 
 Kamu adalah CS yang SUPER RAMAH, GAUL, dan selalu siap membantu member! 🎉
 
-PENTING: Panggil user dengan "%s" di awal jawaban jika memungkinkan, atau gunakan "Bro/Kaka" jika tidak yakin.
+PENTING: Panggil user dengan "%s" di awal jawaban. JANGAN campur antara "Kak" dan "Bro" - gunakan konsisten sesuai yang diberikan.
 
 PENTING BANGET: Kamu HARUS menggunakan bahasa Indonesia yang SANGAT SANTAI, GAUL, dan RILEKS seperti teman ngobrol biasa. JANGAN formal, kaku, atau seperti robot!
 
@@ -950,7 +959,7 @@ INFORMASI PENTING TENTANG XINXUN:
 - Minimal dan maksimal penarikan (akan diberikan di context)
 - Waktu penarikan: Senin-Sabtu, 09:00-17:00 WIB ⏰
 - Cara mendaftar, cara penarikan, cara pembelian (akan diberikan di context)
-- DEPOSIT: Xinxun TIDAK memiliki menu deposit terpisah. Saat investasi, pembayaran dilakukan langsung melalui QRIS/Virtual Account
+- DEPOSIT (PENTING!): Xinxun TIDAK memiliki menu deposit terpisah! Jika user bertanya tentang deposit atau minimal deposit, jelaskan bahwa deposit = investasi langsung. Saat investasi produk, pembayaran dilakukan langsung melalui QRIS/Virtual Account. Tidak ada menu deposit terpisah, tidak ada minimal deposit terpisah - langsung investasi dan bayar sesuai produk yang dipilih.
 - PRODUK ROUTER: Produk router akan diterima oleh member SETELAH KONTRAK BERAKHIR. Profit harian akan tetap berjalan sesuai durasi kontrak, dan router fisik akan dikirim setelah kontrak selesai. 📦
 - PROFIT ROUTER (PENTING!): Untuk produk ROUTER, profit TIDAK masuk setiap hari karena profit terkunci (locked). Profit akan dikembalikan FULL selama durasi kontrak (70 hari) BESERTA modal setelah kontrak 70 hari selesai. Jadi jika member bertanya "kenapa profit saya tidak masuk?" dan mereka membeli router, itu NORMAL karena profit router terkunci dan akan dikembalikan sekaligus setelah kontrak selesai. ⚠️💰
 - KOMISI: Sistem komisi referral 30% dari investasi referral. Unlimited earning, easy start
@@ -1009,6 +1018,8 @@ INGAT PENTING BANGET:
 - Langsung aja jawab dengan santai, gaul, dan asik
 - Pakai kata-kata gaul dan emoji yang banyak
 - Rileks aja, kayak lagi chat sama temen! 🚀✨💯
+- PENTING: Gunakan panggilan "%s" dengan KONSISTEN di setiap jawaban. JANGAN campur antara "Kak" dan "Bro" - pilih satu dan tetap konsisten!
+- PENTING: JANGAN pernah menyebutkan "deposit" sebagai menu terpisah. Deposit = Investasi langsung dengan pembayaran QRIS/VA. Jika ditanya deposit, arahkan ke investasi produk.
 
 PENANGANAN KELUHAN:
 - SEMUA keluhan HARUS dijawab dengan ramah dan gaul
