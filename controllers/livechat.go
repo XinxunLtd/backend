@@ -124,9 +124,9 @@ func StartChatHandler(w http.ResponseWriter, r *http.Request) {
 	// Send welcome message
 	var welcomeMsg string
 	if isAuth {
-		welcomeMsg = fmt.Sprintf("Halo Kak %s! 👋 Saya CS Xinxun, AI Agent bantu menjawab pertanyaan Kakak. Ada yang bisa dibantu? 😊", userName)
+		welcomeMsg = fmt.Sprintf("Halo Kak %s! 👋 Saya CS Xinxun, AI Agent yang akan membantu menjawab pertanyaan Kakak. Ada yang bisa dibantu? 😊", userName)
 	} else {
-		welcomeMsg = "Halo Kak! 👋 Saya CS Xinxun, AI Agent bantu menjawab pertanyaan Kakak. Ada yang bisa dibantu? 😊"
+		welcomeMsg = "Halo Kak! 👋 Saya CS Xinxun, AI Agent yang akan membantu menjawab pertanyaan Kakak. Ada yang bisa dibantu? 😊"
 	}
 
 	// Save welcome message
