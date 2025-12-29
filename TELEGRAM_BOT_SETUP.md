@@ -6,11 +6,11 @@ Dokumentasi untuk setup bot Customer Service Telegram menggunakan AI Groq.
 
 - ✅ FAQ-based responses - jawab otomatis pertanyaan umum
 - ✅ AI-powered - integrasi Groq API dengan model Llama
-- ✅ Smart trigger - respons kalau di-mention, di-reply, ada "?", atau ada kata "min/admin/cs"
+- ✅ Auto-response - bot merespons semua pesan secara bebas tanpa trigger khusus
 - ✅ Rate limiting - anti-spam, 1 response per 5 detik per user
 - ✅ Conversation history - ingat konteks 10 pesan terakhir
 - ✅ Database access terbatas - hanya akses informasi produk, minimal penarikan, waktu penarikan, dll
-- ✅ Group-only - bot hanya merespons di grup yang di-set, mengabaikan chat private
+- ✅ Group & Private Chat - bot merespons di grup yang di-set dan juga di chat private
 
 ## Prerequisites
 

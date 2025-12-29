@@ -163,23 +163,30 @@ func ShouldRespond(update *TelegramUpdate) bool {
 		return false
 	}
 
-	// Only respond in groups
-	if update.Message.Chat.Type != "group" && update.Message.Chat.Type != "supergroup" {
-		return false
-	}
+	// Respond in both groups and private chats
+	chatType := update.Message.Chat.Type
 
-	// Check if group is allowed
-	if len(allowedGroupIDs) > 0 {
-		allowed := false
-		for _, id := range allowedGroupIDs {
-			if update.Message.Chat.ID == id {
-				allowed = true
-				break
+	// If it's a group or supergroup, check if it's allowed
+	if chatType == "group" || chatType == "supergroup" {
+		// Check if group is allowed
+		if len(allowedGroupIDs) > 0 {
+			allowed := false
+			for _, id := range allowedGroupIDs {
+				if update.Message.Chat.ID == id {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				return false
 			}
 		}
-		if !allowed {
-			return false
-		}
+	} else if chatType == "private" {
+		// Allow all private chats - bot will respond to all private messages
+		// No need to check allowedGroupIDs for private chats
+	} else {
+		// Ignore other chat types (channel, etc.)
+		return false
 	}
 
 	// Bot will respond to all text messages in allowed groups
@@ -467,7 +474,7 @@ func CSBotWebhookHandler(w http.ResponseWriter, r *http.Request) {
 Kamu adalah CS yang ramah, membantu, dan selalu siap membantu member di grup chat.
 
 Gaya komunikasi:
-- Gunakan bahasa Indonesia yang santai namun profesional
+- Gunakan bahasa Indonesia yang santai dan asik namun profesional
 - Ramah dan hangat seperti teman yang membantu
 - Bisa merespons berbagai jenis percakapan (pertanyaan, obrolan ringan, dll)
 - Jika ada yang mengobrol atau bercanda, ikuti dengan ramah tapi tetap fokus pada topik Xinxun
