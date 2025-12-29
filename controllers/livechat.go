@@ -75,10 +75,10 @@ func StartChatHandler(w http.ResponseWriter, r *http.Request) {
 	var userName string
 	var isAuth bool
 
-	// Check if user is authenticated
-	authUserID, hasAuth := utils.GetUserID(r)
-	if hasAuth {
-		// Authenticated user
+	// Check if user is authenticated by extracting token from header directly
+	authUserID, err := utils.ExtractUserIDFromRequest(r)
+	if err == nil && authUserID > 0 {
+		// Authenticated user - token is valid
 		isAuth = true
 		userID = &authUserID
 
@@ -90,7 +90,7 @@ func StartChatHandler(w http.ResponseWriter, r *http.Request) {
 			userName = "User"
 		}
 	} else {
-		// Non-authenticated user
+		// Non-authenticated user - no token or invalid token
 		isAuth = false
 		userID = nil
 		if req.Name != "" {
@@ -220,8 +220,8 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Check authentication (if session is auth, user must be authenticated)
 	if session.IsAuth {
-		authUserID, hasAuth := utils.GetUserID(r)
-		if !hasAuth || authUserID != *session.UserID {
+		authUserID, err := utils.ExtractUserIDFromRequest(r)
+		if err != nil || authUserID == 0 || authUserID != *session.UserID {
 			utils.WriteJSON(w, http.StatusUnauthorized, utils.APIResponse{
 				Success: false,
 				Message: "Unauthorized",
@@ -438,8 +438,8 @@ func EndChatHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Check authentication
 	if session.IsAuth {
-		authUserID, hasAuth := utils.GetUserID(r)
-		if !hasAuth || authUserID != *session.UserID {
+		authUserID, err := utils.ExtractUserIDFromRequest(r)
+		if err != nil || authUserID == 0 || authUserID != *session.UserID {
 			utils.WriteJSON(w, http.StatusUnauthorized, utils.APIResponse{
 				Success: false,
 				Message: "Unauthorized",
@@ -525,8 +525,8 @@ func GetChatHistoryHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Check authentication
 	if session.IsAuth {
-		authUserID, hasAuth := utils.GetUserID(r)
-		if !hasAuth || authUserID != *session.UserID {
+		authUserID, err := utils.ExtractUserIDFromRequest(r)
+		if err != nil || authUserID == 0 || authUserID != *session.UserID {
 			utils.WriteJSON(w, http.StatusUnauthorized, utils.APIResponse{
 				Success: false,
 				Message: "Unauthorized",
