@@ -158,6 +158,11 @@ func ShouldRespond(update *TelegramUpdate) bool {
 		return false
 	}
 
+	// Ignore messages from bots
+	if update.Message.From != nil && update.Message.From.IsBot {
+		return false
+	}
+
 	// Only respond in groups
 	if update.Message.Chat.Type != "group" && update.Message.Chat.Type != "supergroup" {
 		return false
@@ -177,41 +182,20 @@ func ShouldRespond(update *TelegramUpdate) bool {
 		}
 	}
 
-	text := strings.ToLower(update.Message.Text)
+	// Bot will respond to all text messages in allowed groups
+	// This makes it behave like a real CS that's always ready to help
+	text := strings.TrimSpace(update.Message.Text)
 	if text == "" {
 		return false
 	}
 
-	// Check if bot is mentioned
-	botUsername := os.Getenv("TELEGRAM_BOT_USERNAME")
-	if botUsername != "" {
-		botUsername = strings.ToLower(strings.TrimPrefix(botUsername, "@"))
-		if strings.Contains(text, "@"+botUsername) {
-			return true
-		}
+	// Ignore commands (messages starting with /)
+	if strings.HasPrefix(text, "/") {
+		return false
 	}
 
-	// Check if it's a reply to bot message
-	if update.Message.ReplyToMessage != nil && update.Message.ReplyToMessage.From != nil {
-		if update.Message.ReplyToMessage.From.IsBot {
-			return true
-		}
-	}
-
-	// Check for question mark
-	if strings.Contains(text, "?") {
-		return true
-	}
-
-	// Check for trigger words
-	triggerWords := []string{"min", "admin", "cs", "customer service", "bantuan", "help", "tolong", "cara", "bagaimana"}
-	for _, word := range triggerWords {
-		if strings.Contains(text, word) {
-			return true
-		}
-	}
-
-	return false
+	// Respond to all other messages
+	return true
 }
 
 // GetConversationHistory returns the last 10 messages for a user
@@ -480,10 +464,27 @@ func CSBotWebhookHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Build system prompt
 	systemPrompt := `Kamu adalah customer service bot untuk aplikasi Xinxun, sebuah platform investasi. 
-Jawab pertanyaan dengan ramah, jelas, dan membantu. Gunakan bahasa Indonesia yang santai namun profesional.
-Jika ditanya tentang harga produk, minimal penarikan, waktu penarikan, cara daftar, cara penarikan, atau cara pembelian, 
-berikan informasi yang akurat berdasarkan data yang tersedia. 
-Jika tidak tahu jawabannya, arahkan user untuk menghubungi admin melalui link CS yang tersedia.`
+Kamu adalah CS yang ramah, membantu, dan selalu siap membantu member di grup chat.
+
+Gaya komunikasi:
+- Gunakan bahasa Indonesia yang santai namun profesional
+- Ramah dan hangat seperti teman yang membantu
+- Bisa merespons berbagai jenis percakapan (pertanyaan, obrolan ringan, dll)
+- Jika ada yang mengobrol atau bercanda, ikuti dengan ramah tapi tetap fokus pada topik Xinxun
+- Jika ada pertanyaan serius tentang Xinxun, jawab dengan detail dan jelas
+
+Informasi yang bisa kamu berikan:
+- Harga produk dan detail produk
+- Minimal dan maksimal penarikan
+- Waktu penarikan (Senin-Sabtu, 09:00-17:00 WIB)
+- Cara mendaftar
+- Cara melakukan penarikan
+- Cara melakukan pembelian produk
+- Informasi umum tentang Xinxun
+
+Jika tidak tahu jawabannya atau butuh informasi lebih detail, arahkan user untuk menghubungi admin melalui link CS yang tersedia.
+
+Jawab dengan singkat, jelas, dan ramah. Maksimal 3-4 kalimat per respons agar tidak terlalu panjang.`
 
 	// Add user message to history
 	messages := append(history, utils.GroqMessage{
