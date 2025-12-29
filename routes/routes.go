@@ -118,5 +118,8 @@ func InitRouter() *mux.Router {
 	// Setup admin routes
 	SetAdminRoutes(api)
 
+	// Telegram CS Bot webhook
+	api.Handle("/telegram/webhook", http.HandlerFunc(controllers.TelegramCSBotWebhookHandler)).Methods(http.MethodPost)
+
 	return r
 }

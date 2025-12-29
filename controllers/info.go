@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	telegram "project/controllers/telegram"
 	"project/database"
 	"project/models"
 	"project/utils"
@@ -666,4 +667,9 @@ func randomString(alphabet string, length int) (string, error) {
 		out[i] = alphabet[int(buf[i])%len(alphabet)]
 	}
 	return string(out), nil
+}
+
+// TelegramCSBotWebhookHandler is a wrapper for the Telegram bot webhook handler
+func TelegramCSBotWebhookHandler(w http.ResponseWriter, r *http.Request) {
+	telegram.CSBotWebhookHandler(w, r)
 }
