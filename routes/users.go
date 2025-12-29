@@ -85,4 +85,16 @@ func UsersRoutes(api *mux.Router) {
 
 	api.Handle("/users/task", userLimiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(users.TaskListHandler)))).Methods(http.MethodGet)
 	api.Handle("/users/task/submit", userLimiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(users.TaskSubmitHandler)))).Methods(http.MethodPost)
+
+	// Live Chat AI endpoints
+	// Start chat (public - no auth required, but can be used with auth)
+	api.Handle("/livechat/start", loginLimiter.Middleware(http.HandlerFunc(controllers.StartChatHandler))).Methods(http.MethodPost)
+	// Send message (public - session-based auth)
+	api.Handle("/livechat/{session_id}/message", loginLimiter.Middleware(http.HandlerFunc(controllers.SendMessageHandler))).Methods(http.MethodPost)
+	// End chat (public - session-based auth)
+	api.Handle("/livechat/{session_id}/end", loginLimiter.Middleware(http.HandlerFunc(controllers.EndChatHandler))).Methods(http.MethodPost)
+	// Get chat history (public - session-based auth)
+	api.Handle("/livechat/{session_id}/history", loginLimiter.Middleware(http.HandlerFunc(controllers.GetChatHistoryHandler))).Methods(http.MethodGet)
+	// Get all chat sessions (auth required - only for authenticated users)
+	api.Handle("/livechat/sessions", userLimiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(controllers.GetChatSessionsHandler)))).Methods(http.MethodGet)
 }

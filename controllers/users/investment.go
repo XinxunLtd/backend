@@ -529,7 +529,7 @@ func ListInvestmentsHandler(w http.ResponseWriter, r *http.Request) {
 			CreatedAt:     inv.CreatedAt,
 			UpdatedAt:     inv.UpdatedAt,
 		}
-		
+
 		// Get status from payment if payment exists
 		if payment, ok := paymentMap[inv.OrderID]; ok {
 			item.Status = payment.Status
@@ -538,7 +538,7 @@ func ListInvestmentsHandler(w http.ResponseWriter, r *http.Request) {
 				item.ExpiredAt = &expiredStr
 			}
 		}
-		
+
 		if productName, ok := productMap[inv.ProductID]; ok {
 			item.Product = &productName
 		}
@@ -549,9 +549,9 @@ func ListInvestmentsHandler(w http.ResponseWriter, r *http.Request) {
 	responseData := map[string]interface{}{
 		"data": responseRows,
 		"pagination": map[string]interface{}{
-			"page":       page,
-			"limit":      limit,
-			"total_rows": totalRows,
+			"page":        page,
+			"limit":       limit,
+			"total_rows":  totalRows,
 			"total_pages": totalPages,
 		},
 	}
@@ -660,7 +660,7 @@ func KytaWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		CallbackData    struct {
 			ID          string `json:"id"`
 			ReferenceID string `json:"reference_id"`
-			Amount      int64 `json:"amount"`
+			Amount      int64  `json:"amount"`
 			Status      string `json:"status"`
 			PaymentType string `json:"payment_type"`
 			PaymentData struct {
@@ -968,7 +968,7 @@ func ExpiredPaymentsHandler(w http.ResponseWriter, r *http.Request) {
 	processed := 0
 	for i := range expiredPayments {
 		payment := expiredPayments[i]
-		
+
 		// Update payment, investment, and transaction in a transaction
 		err := db.Transaction(func(tx *gorm.DB) error {
 			// Update payment status to Expired

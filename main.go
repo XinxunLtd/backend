@@ -59,6 +59,8 @@ func main() {
 			&models.Setting{ClosedRegister: false, Maintenance: false}, 
 			&models.Payment{}, 
 			&models.PaymentSettings{},
+			&models.ChatSession{},
+			&models.ChatMessage{},
 		); err != nil {
 			log.Fatalf("failed to migrate database: %v", err)
 		}

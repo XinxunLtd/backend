@@ -337,8 +337,8 @@ func AddToConversationHistory(userID int64, role string, content string) {
 	conversationHistory[userID].LastSeen = time.Now()
 }
 
-// detectFAQType detects what type of information is being asked
-func detectFAQType(question string) string {
+// DetectFAQType detects what type of information is being asked
+func DetectFAQType(question string) string {
 	question = strings.ToLower(question)
 
 	if strings.Contains(question, "harga") || strings.Contains(question, "price") || strings.Contains(question, "berapa") {
@@ -443,8 +443,8 @@ func getCurrentTimeContext() string {
 		now.Year())
 }
 
-// getContextData retrieves relevant data from database based on FAQ type
-func getContextData(faqType string) string {
+// GetContextData retrieves relevant data from database based on FAQ type
+func GetContextData(faqType string) string {
 	// Add current time context to all responses
 	timeContext := getCurrentTimeContext()
 
@@ -1115,8 +1115,8 @@ func CSBotWebhookHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Get relevant data from database based on question
 	var contextData string
-	if faqType := detectFAQType(userMessage); faqType != "" {
-		contextData = getContextData(faqType)
+	if faqType := DetectFAQType(userMessage); faqType != "" {
+		contextData = GetContextData(faqType)
 	}
 
 	// Build system prompt with updated style

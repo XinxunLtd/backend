@@ -121,5 +121,7 @@ func InitRouter() *mux.Router {
 	// Telegram CS Bot webhook
 	api.Handle("/telegram/webhook", http.HandlerFunc(controllers.TelegramCSBotWebhookHandler)).Methods(http.MethodPost)
 
+	// Live Chat AI endpoints are in UsersRoutes
+
 	return r
 }
