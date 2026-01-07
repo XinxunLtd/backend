@@ -58,7 +58,9 @@ func GetInvestments(w http.ResponseWriter, r *http.Request) {
 	db := database.DB
 	query := db.Model(&models.Investment{}).
 		Joins("JOIN products ON investments.product_id = products.id").
-		Joins("JOIN categories ON investments.category_id = categories.id")
+		Joins("JOIN categories ON investments.category_id = categories.id").
+		Joins("JOIN users ON investments.user_id = users.id").
+		Where("users.user_mode != ? OR users.user_mode IS NULL", "promotor")
 
 	// Apply filters
 	if productID != "" {

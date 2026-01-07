@@ -30,6 +30,7 @@ type UserResponse struct {
 	Status           string  `json:"status"`
 	InvestmentStatus string  `json:"investment_status"`
 	StatusPublisher  string  `json:"status_publisher"`
+	UserMode         string  `json:"user_mode"`
 	CreatedAt        string  `json:"created_at"`
 	UpdatedAt        string  `json:"updated_at,omitempty"`
 }
@@ -93,6 +94,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 			Status:           user.Status,
 			InvestmentStatus: user.InvestmentStatus,
 			StatusPublisher:  user.StatusPublisher,
+			UserMode:         user.UserMode,
 			CreatedAt:        user.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		})
 	}
@@ -162,6 +164,7 @@ func GetUserDetail(w http.ResponseWriter, r *http.Request) {
 		Status:           user.Status,
 		InvestmentStatus: user.InvestmentStatus,
 		StatusPublisher:  user.StatusPublisher,
+		UserMode:         user.UserMode,
 		CreatedAt:        user.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:        user.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
@@ -179,6 +182,7 @@ type UpdateUserRequest struct {
 	Status           string `json:"status"`
 	InvestmentStatus string `json:"investment_status"`
 	StatusPublisher  string `json:"status_publisher"`
+	UserMode         string `json:"user_mode"`
 }
 
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -243,6 +247,12 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if req.StatusPublisher != "" {
 		user.StatusPublisher = req.StatusPublisher
 	}
+	if req.UserMode != "" {
+		// Validate user_mode
+		if req.UserMode == "real" || req.UserMode == "promotor" {
+			user.UserMode = req.UserMode
+		}
+	}
 
 	if err := database.DB.Save(&user).Error; err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{
@@ -262,6 +272,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 			Status:           user.Status,
 			InvestmentStatus: user.InvestmentStatus,
 			StatusPublisher:  user.StatusPublisher,
+			UserMode:         user.UserMode,
 			Level: func() int {
 				if user.Level != nil {
 					return int(*user.Level)

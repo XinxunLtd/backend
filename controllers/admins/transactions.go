@@ -47,17 +47,19 @@ func GetTransactions(w http.ResponseWriter, r *http.Request) {
 
 	// Start query
 	db := database.DB
-	query := db.Model(&models.Transaction{})
+	query := db.Model(&models.Transaction{}).
+		Joins("JOIN users ON transactions.user_id = users.id").
+		Where("users.user_mode != ? OR users.user_mode IS NULL", "promotor")
 
 	// Apply filters
 	if userId != "" {
-		query = query.Where("user_id = ?", userId)
+		query = query.Where("transactions.user_id = ?", userId)
 	}
 	if transactionType != "" {
-		query = query.Where("transaction_type = ?", transactionType)
+		query = query.Where("transactions.transaction_type = ?", transactionType)
 	}
 	if status != "" {
-		query = query.Where("status = ?", status)
+		query = query.Where("transactions.status = ?", status)
 	}
 
 	if orderID != "" {
@@ -82,9 +84,10 @@ func GetTransactions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var transactions []models.Transaction
-	query.Offset(offset).
+	query.Select("transactions.*").
+		Offset(offset).
 		Limit(limit).
-		Order("created_at DESC").
+		Order("transactions.created_at DESC").
 		Find(&transactions)
 
 	// Prepare user IDs to fetch names and phones in batch

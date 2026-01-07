@@ -189,7 +189,7 @@ func CreateInvestmentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var user models.User
-	if err := db.Select("level").Where("id = ?", uid).First(&user).Error; err != nil {
+	if err := db.Select("level, user_mode, balance").Where("id = ?", uid).First(&user).Error; err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Terjadi kesalahan, coba lagi"})
 		return
 	}
@@ -220,6 +220,171 @@ func CreateInvestmentHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	amount := product.Amount
+	daily := product.DailyProfit
+	orderID := utils.GenerateOrderID(uid)
+	referenceID := orderID
+
+	// Check if user is promotor
+	isPromotor := user.UserMode == "promotor"
+
+	// Sentinel error for insufficient balance
+	var errInsufficientBalance = errors.New("insufficient_balance")
+
+	if isPromotor {
+		// For promotor: check balance and process directly without payment gateway
+		if user.Balance < amount {
+			utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Saldo tidak mencukupi"})
+			return
+		}
+
+		inv := models.Investment{
+			UserID:        uid,
+			ProductID:     product.ID,
+			CategoryID:    product.CategoryID,
+			Amount:        amount,
+			DailyProfit:   daily,
+			Duration:      product.Duration,
+			TotalPaid:     0,
+			TotalReturned: 0,
+			OrderID:       orderID,
+			Status:        "Pending",
+		}
+
+		if err := db.Transaction(func(tx *gorm.DB) error {
+			// Lock user row for update
+			var lockedUser models.User
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&lockedUser, uid).Error; err != nil {
+				return err
+			}
+			if lockedUser.Balance < amount {
+				return errInsufficientBalance
+			}
+
+			// Deduct balance
+			newBalance := round3(lockedUser.Balance - amount)
+			if err := tx.Model(&lockedUser).Update("balance", newBalance).Error; err != nil {
+				return err
+			}
+
+			// Create investment
+			if err := tx.Create(&inv).Error; err != nil {
+				return err
+			}
+
+			// Create payment record (for promotor, mark as Success immediately)
+			methodToSave := strings.ToUpper(method)
+			payment := models.Payment{
+				InvestmentID: inv.ID,
+				ReferenceID: func() *string {
+					x := referenceID
+					return &x
+				}(),
+				OrderID:       inv.OrderID,
+				PaymentMethod: &methodToSave,
+				PaymentChannel: func() *string {
+					if methodToSave == "BANK" {
+						return &channel
+					}
+					return nil
+				}(),
+				Status: "Success",
+			}
+			if err := tx.Create(&payment).Error; err != nil {
+				return err
+			}
+
+			// Create transaction (Success immediately for promotor)
+			msg := fmt.Sprintf("Investasi %s", product.Name)
+			trx := models.Transaction{
+				UserID:          uid,
+				Amount:          inv.Amount,
+				Charge:          0,
+				OrderID:         inv.OrderID,
+				TransactionFlow: "credit",
+				TransactionType: "investment",
+				Message:         &msg,
+				Status:          "Success",
+			}
+			if err := tx.Create(&trx).Error; err != nil {
+				return err
+			}
+
+			// Update investment to Running
+			now := time.Now()
+			next := now.Add(24 * time.Hour)
+			updates := map[string]interface{}{
+				"status":         "Running",
+				"last_return_at": nil,
+				"next_return_at": next,
+			}
+			if err := tx.Model(&inv).Updates(updates).Error; err != nil {
+				return err
+			}
+
+			// Get category info to determine if this is Monitor (locked profit)
+			var category models.Category
+			isMonitor := false
+			if err := tx.Where("id = ?", inv.CategoryID).First(&category).Error; err == nil {
+				if category.ProfitType == "locked" {
+					isMonitor = true
+				}
+			}
+
+			// Update user total_invest and total_invest_vip
+			userUpdates := map[string]interface{}{
+				"total_invest":      gorm.Expr("total_invest + ?", inv.Amount),
+				"investment_status": "Active",
+			}
+			if isMonitor {
+				userUpdates["total_invest_vip"] = gorm.Expr("total_invest_vip + ?", inv.Amount)
+			}
+			if err := tx.Model(&models.User{}).Where("id = ?", inv.UserID).Updates(userUpdates).Error; err != nil {
+				return err
+			}
+
+			// Calculate VIP level based on total_invest_vip for locked categories
+			if isMonitor {
+				var updatedUser models.User
+				if err := tx.Model(&models.User{}).Select("total_invest_vip").Where("id = ?", inv.UserID).First(&updatedUser).Error; err == nil {
+					newLevel := calculateVIPLevel(updatedUser.TotalInvestVIP)
+					if err := tx.Model(&models.User{}).Where("id = ?", inv.UserID).Update("level", newLevel).Error; err != nil {
+						return err
+					}
+				}
+			}
+
+			// Untuk mode promotor: TIDAK memberikan bonus rekomendasi dan spin ticket
+			// Bonus hanya diberikan untuk mode real
+
+			return nil
+		}); err != nil {
+			if errors.Is(err, errInsufficientBalance) {
+				utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Saldo tidak mencukupi"})
+				return
+			}
+			utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Gagal membuat investasi"})
+			return
+		}
+
+		// Reload investment to get updated status
+		db.First(&inv, inv.ID)
+
+		resp := map[string]interface{}{
+			"order_id":     inv.OrderID,
+			"amount":       inv.Amount,
+			"product":      product.Name,
+			"category":     product.Category.Name,
+			"category_id":  product.CategoryID,
+			"duration":     product.Duration,
+			"daily_profit": daily,
+			"status":       inv.Status,
+		}
+		utils.WriteJSON(w, http.StatusCreated, utils.APIResponse{Success: true, Message: "Investasi berhasil diproses", Data: resp})
+		return
+	}
+
+	// For real users: use payment gateway
 	kytapayBase := os.Getenv("KYTAPAY_BASE_URL")
 	if kytapayBase == "" {
 		kytapayBase = "https://api-v2.kytapay.com/v2"
@@ -236,16 +401,12 @@ func CreateInvestmentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpClient := &http.Client{Timeout: 30 * time.Second}
-	orderID := utils.GenerateOrderID(uid)
-	referenceID := orderID
 
 	accessToken, _, err := getKytaAccessTokenSafe(r.Context(), httpClient, kytapayBase, kytapayClientID, kytapayClientSecret)
 	if err != nil {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Terjadi kesalahan saat memanggil layanan pembayaran"})
 		return
 	}
-
-	amount := product.Amount
 
 	if method == "QRIS" && amount > 10000000 {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.APIResponse{Success: false, Message: "Jumlah pembayaran maksimal menggunakan QRIS adalah Rp 10.000.000, Silahkan gunakan metode pembayaran lain"})
@@ -272,8 +433,6 @@ func CreateInvestmentHandler(w http.ResponseWriter, r *http.Request) {
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.APIResponse{Success: false, Message: "Gagal mendapatkan jawaban dari layanan pembayaran"})
 		return
 	}
-
-	daily := product.DailyProfit
 
 	inv := models.Investment{
 		UserID:        uid,

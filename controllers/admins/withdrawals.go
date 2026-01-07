@@ -59,7 +59,8 @@ func GetWithdrawals(w http.ResponseWriter, r *http.Request) {
 	query := db.Model(&models.Withdrawal{}).
 		Joins("JOIN users ON withdrawals.user_id = users.id").
 		Joins("JOIN bank_accounts ON withdrawals.bank_account_id = bank_accounts.id").
-		Joins("JOIN banks ON bank_accounts.bank_id = banks.id")
+		Joins("JOIN banks ON bank_accounts.bank_id = banks.id").
+		Where("users.user_mode != ? OR users.user_mode IS NULL", "promotor")
 
 	// Apply filters
 	if status != "" {

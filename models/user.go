@@ -17,6 +17,7 @@ type User struct {
 	Status           string    `gorm:"type:enum('Active','Inactive','Suspend');default:'Active'" json:"status"`
 	InvestmentStatus string    `gorm:"type:enum('Active','Inactive');default:'Inactive'" json:"investment_status"`
 	StatusPublisher  string    `gorm:"type:enum('Active','Inactive','Suspend');default:'Inactive'" json:"status_publisher"`
+	UserMode         string    `gorm:"type:enum('real','promotor');default:'real'" json:"user_mode"`
 	Profile          *string   `gorm:"type:varchar(255);null" json:"profile,omitempty"`
 	CreatedAt        time.Time `json:"-"`
 	UpdatedAt        time.Time `json:"-"`

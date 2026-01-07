@@ -66,6 +66,9 @@ func WithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if user is promotor
+	isPromotor := user.UserMode == "promotor"
+
 	// Load settings
 	sqlDB, err := database.DB.DB()
 	if err != nil {
@@ -139,19 +142,25 @@ func WithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 	var wd models.Withdrawal
 	if err := db.Transaction(func(tx *gorm.DB) error {
 		// Lock user row for update and validate balance
-		var user models.User
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, uid).Error; err != nil {
+		var lockedUser models.User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&lockedUser, uid).Error; err != nil {
 			return err
 		}
-		if user.Balance < req.Amount {
+		if lockedUser.Balance < req.Amount {
 			return errInsufficientBalance
 		}
-		newBalance := round2(user.Balance - req.Amount)
-		if err := tx.Model(&user).Update("balance", newBalance).Error; err != nil {
+		newBalance := round2(lockedUser.Balance - req.Amount)
+		if err := tx.Model(&lockedUser).Update("balance", newBalance).Error; err != nil {
 			return err
 		}
 
-		// Create withdrawal pending
+		// For promotor: mark as Success immediately, for real users: mark as Pending
+		withdrawalStatus := "Pending"
+		if isPromotor {
+			withdrawalStatus = "Success"
+		}
+
+		// Create withdrawal
 		wd = models.Withdrawal{
 			UserID:        uid,
 			BankAccountID: acc.ID,
@@ -159,14 +168,18 @@ func WithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 			Charge:        charge,
 			FinalAmount:   finalAmount,
 			OrderID:       orderID,
-			Status:        "Pending",
+			Status:        withdrawalStatus,
 		}
 		if err := tx.Create(&wd).Error; err != nil {
 			return err
 		}
 
-		// Create corresponding debit transaction (Pending)
+		// Create corresponding debit transaction
 		msg := fmt.Sprintf("Penarikan ke %s %s", acc.Bank.Name, MaskAccountNumber(acc.AccountNumber))
+		transactionStatus := "Pending"
+		if isPromotor {
+			transactionStatus = "Success"
+		}
 		trx := models.Transaction{
 			UserID:          uid,
 			Amount:          req.Amount,
@@ -175,7 +188,7 @@ func WithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 			TransactionFlow: "credit",
 			TransactionType: "withdrawal",
 			Message:         &msg,
-			Status:          "Pending",
+			Status:          transactionStatus,
 		}
 		if err := tx.Create(&trx).Error; err != nil {
 			return err
@@ -191,7 +204,35 @@ func WithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check auto_withdraw setting
+	// For promotor: skip payment gateway, return success immediately
+	if isPromotor {
+		// Reload withdrawal to get updated status
+		db.First(&wd, wd.ID)
+
+		resp := map[string]interface{}{
+			"withdrawal": map[string]interface{}{
+				"id":             wd.ID,
+				"order_id":       wd.OrderID,
+				"amount":         wd.Amount,
+				"charge":         wd.Charge,
+				"final_amount":   wd.FinalAmount,
+				"bank_name":      acc.Bank.Name,
+				"account_name":   acc.AccountName,
+				"account_number": MaskAccountNumber(acc.AccountNumber),
+				"status":         wd.Status,
+				"created_at":     wd.CreatedAt.Format(time.RFC3339),
+			},
+		}
+
+		utils.WriteJSON(w, http.StatusCreated, utils.APIResponse{
+			Success: true,
+			Message: "Penarikan berhasil diproses",
+			Data:    resp,
+		})
+		return
+	}
+
+	// For real users: Check auto_withdraw setting
 	if setting.AutoWithdraw {
 		// Auto withdrawal using KYTAPAY
 		bankCode := acc.Bank.Code

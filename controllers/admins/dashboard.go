@@ -98,16 +98,18 @@ func GetDashboardStats(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Get total investments count (excluding pending)
+	// Get total investments count (excluding pending and promotor)
 	db.Model(&models.Investment{}).
-		Where("status != ?", "Pending").
+		Joins("JOIN users ON investments.user_id = users.id").
+		Where("investments.status != ? AND (users.user_mode != ? OR users.user_mode IS NULL)", "Pending", "promotor").
 		Count(&stats.TotalInvestments)
 
 	// Get overview investments amount by day with payment status "Success"
 	investMap := map[string]float64{}
 	rows, err = db.Model(&models.Investment{}).
 		Select("DATE_FORMAT(investments.created_at, '%Y-%m-%d') as day, COALESCE(SUM(investments.amount), 0) as amount").
-		Where("status IN (?) AND investments.created_at >= CURDATE() - INTERVAL 6 DAY", []string{"Running", "Completed", "Suspended"}).
+		Joins("JOIN users ON investments.user_id = users.id").
+		Where("investments.status IN (?) AND investments.created_at >= CURDATE() - INTERVAL 6 DAY AND (users.user_mode != ? OR users.user_mode IS NULL)", []string{"Running", "Completed", "Suspended"}, "promotor").
 		Group("DATE_FORMAT(investments.created_at, '%Y-%m-%d')").
 		Rows()
 	if err == nil {
@@ -133,9 +135,10 @@ func GetDashboardStats(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Get pending withdrawals count
+	// Get pending withdrawals count (excluding promotor)
 	db.Model(&models.Withdrawal{}).
-		Where("status = ?", "Pending").
+		Joins("JOIN users ON withdrawals.user_id = users.id").
+		Where("withdrawals.status = ? AND (users.user_mode != ? OR users.user_mode IS NULL)", "Pending", "promotor").
 		Count(&stats.PendingWithdrawals)
 
 	// Get total balance of all users
@@ -148,13 +151,16 @@ func GetDashboardStats(w http.ResponseWriter, r *http.Request) {
 		Scan(&result)
 	stats.TotalBalance = result.TotalBalance
 
-	// Get active investments count
+	// Get active investments count (excluding promotor)
 	db.Model(&models.Investment{}).
-		Where("status = ?", "Running").
+		Joins("JOIN users ON investments.user_id = users.id").
+		Where("investments.status = ? AND (users.user_mode != ? OR users.user_mode IS NULL)", "Running", "promotor").
 		Count(&stats.ActiveInvestments)
 
-	// Get total withdrawals count
+	// Get total withdrawals count (excluding promotor)
 	db.Model(&models.Withdrawal{}).
+		Joins("JOIN users ON withdrawals.user_id = users.id").
+		Where("users.user_mode != ? OR users.user_mode IS NULL", "promotor").
 		Count(&stats.TotalWithdrawals)
 
 	// Get total forums count
@@ -169,50 +175,66 @@ func GetDashboardStats(w http.ResponseWriter, r *http.Request) {
 	// Type transactions counts (set to null when zero)
 	var cnt int64
 
-	// investment
+	// investment (excluding promotor)
 	cnt = 0
-	db.Model(&models.Transaction{}).Where("transaction_type = ?", "investment").Count(&cnt)
+	db.Model(&models.Transaction{}).
+		Joins("JOIN users ON transactions.user_id = users.id").
+		Where("transactions.transaction_type = ? AND (users.user_mode != ? OR users.user_mode IS NULL)", "investment", "promotor").
+		Count(&cnt)
 	if cnt > 0 {
 		val := cnt
 		stats.TypeTransactions.Investment = &val
 	}
 
-	// withdrawal
+	// withdrawal (excluding promotor)
 	cnt = 0
-	db.Model(&models.Transaction{}).Where("transaction_type = ?", "withdrawal").Count(&cnt)
+	db.Model(&models.Transaction{}).
+		Joins("JOIN users ON transactions.user_id = users.id").
+		Where("transactions.transaction_type = ? AND (users.user_mode != ? OR users.user_mode IS NULL)", "withdrawal", "promotor").
+		Count(&cnt)
 	if cnt > 0 {
 		val := cnt
 		stats.TypeTransactions.Withdrawal = &val
 	}
 
-	// return
+	// return (excluding promotor)
 	cnt = 0
-	db.Model(&models.Transaction{}).Where("transaction_type = ?", "return").Count(&cnt)
+	db.Model(&models.Transaction{}).
+		Joins("JOIN users ON transactions.user_id = users.id").
+		Where("transactions.transaction_type = ? AND (users.user_mode != ? OR users.user_mode IS NULL)", "return", "promotor").
+		Count(&cnt)
 	if cnt > 0 {
 		val := cnt
 		stats.TypeTransactions.Return = &val
 	}
 
-	// team
+	// team (excluding promotor)
 	cnt = 0
-	db.Model(&models.Transaction{}).Where("transaction_type = ?", "team").Count(&cnt)
+	db.Model(&models.Transaction{}).
+		Joins("JOIN users ON transactions.user_id = users.id").
+		Where("transactions.transaction_type = ? AND (users.user_mode != ? OR users.user_mode IS NULL)", "team", "promotor").
+		Count(&cnt)
 	if cnt > 0 {
 		val := cnt
 		stats.TypeTransactions.Team = &val
 	}
 
-	// bonus
+	// bonus (excluding promotor)
 	cnt = 0
-	db.Model(&models.Transaction{}).Where("transaction_type = ?", "bonus").Count(&cnt)
+	db.Model(&models.Transaction{}).
+		Joins("JOIN users ON transactions.user_id = users.id").
+		Where("transactions.transaction_type = ? AND (users.user_mode != ? OR users.user_mode IS NULL)", "bonus", "promotor").
+		Count(&cnt)
 	if cnt > 0 {
 		val := cnt
 		stats.TypeTransactions.Bonus = &val
 	}
 
-	// Get last 10 transactions (join with users table to get user name)
+	// Get last 10 transactions (join with users table to get user name, excluding promotor)
 	rows, err = db.Model(&models.Transaction{}).
 		Select("users.name as user_name, transactions.amount, transactions.transaction_type, transactions.message, transactions.created_at").
 		Joins("JOIN users ON transactions.user_id = users.id").
+		Where("users.user_mode != ? OR users.user_mode IS NULL", "promotor").
 		Order("transactions.created_at DESC").
 		Limit(10).
 		Rows()
