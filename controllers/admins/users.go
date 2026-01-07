@@ -239,6 +239,41 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Get admin ID from token
+	authHeader := r.Header.Get("Authorization")
+	var adminID int64 = 0
+	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+		tokenString := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+		_, claims, err := utils.ValidateAccessToken(tokenString)
+		if err == nil {
+			if rawID, ok := claims["id"]; ok {
+				switch v := rawID.(type) {
+				case float64:
+					adminID = int64(v)
+				case int64:
+					adminID = v
+				case int:
+					adminID = int64(v)
+				case string:
+					var n int64
+					_, _ = fmt.Sscanf(v, "%d", &n)
+					adminID = n
+				}
+			}
+		}
+	}
+
+	// Check if trying to change from promotor to real - only admin ID 1 can do this
+	if user.UserMode == "promotor" && req.UserMode == "real" {
+		if adminID != 1 {
+			utils.WriteJSON(w, http.StatusForbidden, utils.APIResponse{
+				Success: false,
+				Message: "Tidak dapat mengubah mode user dari promotor ke real",
+			})
+			return
+		}
+	}
+
 	// Update fields
 	user.Name = req.Name
 	user.Number = req.Number
